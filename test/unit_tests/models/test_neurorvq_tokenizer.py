@@ -5,8 +5,8 @@
 import pytest
 import torch
 
-from braindecode.models import NeuroRVQTokenizer
 import braindecode.models.neurorvq_tokenizer as neurorvq_tokenizer
+from braindecode.models import NeuroRVQTokenizer
 from braindecode.models.neurorvq_tokenizer import _EMAVectorQuantizer
 
 
