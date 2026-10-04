@@ -1338,6 +1338,14 @@ class BaseConcatDataset(ConcatDataset, HubDatasetMixin, Generic[T]):
             )
             by = property if property is not None else split_ids
         if isinstance(by, str):
+            missing = self.description[by].isna()
+            if missing.any():
+                n_missing = int(missing.sum())
+                raise ValueError(
+                    f"Cannot split by {by!r}: {n_missing} dataset description "
+                    "value(s) are missing. Fill or remove missing group labels "
+                    "before splitting to avoid silently dropping datasets."
+                )
             split_ids = {
                 k: list(v) for k, v in self.description.groupby(by).groups.items()
             }
