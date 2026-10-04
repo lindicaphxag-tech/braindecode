@@ -65,6 +65,24 @@ def test_neurorvq_tokenizer_loads_a_local_state_dict(tmp_path):
     for name, value in model.state_dict().items():
         torch.testing.assert_close(loaded.state_dict()[name], value)
 
+def test_neurorvq_tokenizer_pretrained_loading_requires_channel_metadata():
+    model = NeuroRVQTokenizer(
+        n_chans=3,
+        n_times=400,
+        sfreq=200,
+        channel_names=None,
+        out_chans=4,
+        num_heads=4,
+        encoder_depth=1,
+        decoder_depth=1,
+        n_code=16,
+        code_dim=16,
+        num_quantizers=2,
+    )
+
+    with pytest.raises(ValueError, match="requires channel_names or chs_info"):
+        model.load_pretrained_weights("checkpoint-is-not-read-before-validation.pt")
+
 
 def test_neurorvq_tokenizer_initializes_cold_codebooks_once():
     model = _small_tokenizer().eval()
