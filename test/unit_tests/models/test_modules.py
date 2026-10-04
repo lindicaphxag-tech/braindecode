@@ -26,6 +26,7 @@ from braindecode.modules import (
     ECA,
     MLP,
     CausalConv1d,
+    Chomp1d,
     CombinedConv,
     DropPath,
     FeedForwardBlock,
@@ -159,6 +160,18 @@ def _filfilt_in_torch_sytle(b, a, x_np):
     filtered_scipy = np.flip(backward_filtered, axis=-1)
 
     return filtered_scipy
+
+
+
+def test_chomp1d_zero_size_preserves_sequence():
+    module = Chomp1d(chomp_size=0)
+    x = torch.randn(2, 3, 11)
+
+    out = module(x)
+
+    assert out.shape == x.shape
+    torch.testing.assert_close(out, x)
+
 
 
 def test_time_distributed():
