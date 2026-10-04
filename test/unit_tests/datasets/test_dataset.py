@@ -180,6 +180,24 @@ def test_concat_concat_dataset(concat_ds_targets):
     pd.testing.assert_frame_equal(descriptions, concat_concat_ds.description)
 
 
+def test_split_by_missing_description_fails_closed(concat_ds_targets):
+    concat_ds, _ = concat_ds_targets
+    datasets = []
+    for i, ds in enumerate(concat_ds.datasets):
+        description = ds.description.copy()
+        if i == 1:
+            description["run"] = np.nan
+        datasets.append(RawDataset(ds.raw, description))
+
+    split_source = BaseConcatDataset(datasets)
+
+    with pytest.raises(
+        ValueError,
+        match=r"Cannot split by 'run': 1 dataset description value\(s\) are missing",
+    ):
+        split_source.split("run")
+
+
 def test_split_dataset_failure(concat_ds_targets):
     concat_ds = concat_ds_targets[0]
     with pytest.raises(KeyError):
