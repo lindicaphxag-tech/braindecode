@@ -660,6 +660,18 @@ models_mandatory_parameters: list[
     ),
     ("EEGDINO", ["n_chans", "n_outputs", "n_times"], None),
     (
+        "NeuroRVQTokenizer",
+        ["n_chans", "n_outputs", "n_times", "sfreq", "chs_info"],
+        {
+            "n_chans": 3,
+            "n_times": 200,
+            "sfreq": 200.0,
+            "chs_info": [
+                {"ch_name": name, "kind": "eeg"} for name in ("F3", "F4", "Cz")
+            ],
+        },
+    ),
+    (
         "NeuroRVQ",
         ["n_chans", "n_outputs", "n_times", "sfreq"],
         {
