@@ -56,6 +56,12 @@ Enhancements
   encoder. The port preserves the released architecture and identifies its
   CC BY-NC 4.0 license and 200 Hz preprocessing requirements
   (:gh:`1090` by `lindicaphxag-tech`_).
+- Add :class:`braindecode.models.NeuroRVQTokenizer`, which ports the released
+  four-scale residual vector quantization tokenizer with strict pretrained
+  checkpoint loading, reconstruction, and discrete token extraction. It
+  retains the source project's CC BY-NC 4.0 terms and 200 Hz input requirement
+  (:gh:`1201` by `lindicaphxag-tech`_). An optional reference-parity script
+  checks codes, reconstruction, gradients, and EMA updates against the release.
 
 - Generate a version-scoped ``llms.txt`` and selected Markdown documentation
   entry points with source-commit attribution and critical-page coverage checks.

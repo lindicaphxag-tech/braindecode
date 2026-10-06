@@ -9,6 +9,7 @@ from __future__ import annotations
 import inspect
 import os
 import sys
+from collections.abc import Mapping, Sequence
 from io import BytesIO
 from types import MethodType
 
@@ -99,6 +100,33 @@ _MODEL_CASES = {
     name: (required, signal_params)
     for name, required, signal_params in models_mandatory_parameters
 }
+
+
+def _assert_outputs_close(actual, expected, *, atol=1e-4, rtol=1e-5):
+    """Recursively compare tensor-bearing model outputs."""
+    if torch.is_tensor(actual) and torch.is_tensor(expected):
+        assert actual.shape == expected.shape
+        torch.testing.assert_close(actual, expected, atol=atol, rtol=rtol)
+        return
+    if isinstance(actual, Mapping) and isinstance(expected, Mapping):
+        assert actual.keys() == expected.keys()
+        for key in actual:
+            _assert_outputs_close(actual[key], expected[key], atol=atol, rtol=rtol)
+        return
+    if (
+        isinstance(actual, Sequence)
+        and isinstance(expected, Sequence)
+        and not isinstance(actual, (str, bytes))
+        and not isinstance(expected, (str, bytes))
+    ):
+        assert type(actual) is type(expected)
+        assert len(actual) == len(expected)
+        for actual_item, expected_item in zip(actual, expected):
+            _assert_outputs_close(
+                actual_item, expected_item, atol=atol, rtol=rtol
+            )
+        return
+    assert actual == expected
 
 
 def convert_model_to_plain(model):
@@ -507,8 +535,7 @@ def test_model_compiled(model):
     output = not_compiled_model(input_tensor)
     output_compiled = compiled_model(input_tensor)
 
-    assert output.shape == output_compiled.shape
-    assert output_compiled.allclose(output, atol=1e-4)
+    _assert_outputs_close(output_compiled, output)
 
 
 def test_model_exported(model):
@@ -525,6 +552,7 @@ def test_model_exported(model):
         "SSTDPN",  # We found a fake tensor in the exported program constant's list.
         "Labram",  # Uses data-dependent channel/patch paths that are not export-stable yet.
         "CodeBrain",  # Data-dependent n_times // patch_size division in forward is not export-stable.
+        "NeuroRVQTokenizer",  # EMA codebooks use data-dependent k-means initialization.
     ]
     if sys.platform.startswith("win"):
         not_exportable_models += [
@@ -606,6 +634,9 @@ def test_model_torch_script(model):
         # TorchScript / torch.jit.script cannot scriptify the MPF featurizer
         # (torch.linalg.eigh + torch.stft).
         "MetaNeuromotorHand",
+        # Forward depends on private tokenizer helpers that plain-module conversion
+        # intentionally does not bind; cold EMA codebooks also use data-dependent k-means.
+        "NeuroRVQTokenizer",
         "SignalJEPA",
         "SignalJEPA_Contextual",
         "SignalJEPA_PostLocal",
