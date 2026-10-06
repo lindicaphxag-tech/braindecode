@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 import torch
-import torch.distributed as distributed
+from torch import distributed
 import torch.nn.functional as F
 from torch import Tensor, nn
 
