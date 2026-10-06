@@ -15,10 +15,17 @@ The following components are licensed under the Creative Commons Attribution-Non
 - `braindecode/models/meta_neuromotor.py`
 - `braindecode/models/brainmodule.py`
 - `braindecode/models/neurorvq.py`
+- `braindecode/models/_neurorvq_tokenizer_components.py`
+- `braindecode/models/neurorvq_tokenizer.py`
 
 The `meta_neuromotor.py` file is a derivative of
 `facebookresearch/generic-neuromotor-interface`, released by Meta Platforms,
 Inc. under CC BY-NC 4.0, and inherits the same noncommercial terms.
+
+The `neurorvq.py`, `_neurorvq_tokenizer_components.py`, and
+`neurorvq_tokenizer.py` files adapt the released NeuroRVQ EEG foundation
+model and residual tokenizer from `KonstantinosBarmpas/NeuroRVQ`, released
+under CC BY-NC 4.0, and inherit the same noncommercial terms.
 
 ### CC BY-NC-SA 4.0 Licensed Files
 
