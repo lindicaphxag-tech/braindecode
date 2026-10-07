@@ -52,11 +52,11 @@ Run environment: Python 3.12.4, PyTorch 2.8.0+cpu, NumPy 2.2.6, Windows 11, CPU 
 
 This is a deterministic implementation-parity check for one synthetic input shape, one checkpoint, and one software environment. It does not reproduce the paper's dataset benchmarks, estimate task accuracy, test other channel layouts or random seeds, establish robustness, or demonstrate clinical utility. The upstream PR and this evidence branch do not claim those results or SCI-Q1 status.
 
-## High Gamma Table 10 replication
+## High Gamma Table 10 replication attempt
 
-`reproduce_table10_highgamma.py` adds a separate dataset-level check for the raw-signal reconstruction MSE reported for High Gamma in Table 10 of the NeuroRVQ paper. It evaluates all 14 Schirrmeister 2017 subjects by default with the pinned checkpoint and the Braindecode implementation at commit `61194d513e0c5234a2f55923bf157643354e4b42`.
+`reproduce_table10_highgamma.py` adds a separate dataset-level check against the High Gamma raw-signal MSE reported in Table 10 of the NeuroRVQ paper. It evaluates all 14 Schirrmeister 2017 subjects by default with the pinned checkpoint and the Braindecode implementation at commit `61194d513e0c5234a2f55923bf157643354e4b42`.
 
-The script follows the public [EEG-Benchmarking preprocessing protocol](https://github.com/dykestra/EEG-Benchmarking): 0.5–45 Hz filtering, resampling to 200 Hz, four-second cue-locked trials, the documented non-standard channel exclusions, and common-average reference. It reports both trial-pooled and subject-macro MSE, per-subject results, and filtered-band diagnostics. The paper's High Gamma raw-signal target is 0.084; the script does not treat a partial-subject smoke run as a reproduction.
+The script follows the public [EEG-Benchmarking preprocessing protocol](https://github.com/dykestra/EEG-Benchmarking): 0.5–45 Hz filtering, resampling to 200 Hz, four-second cue-locked trials, the documented non-standard channel exclusions, and common-average reference. It reports both trial-pooled and subject-macro MSE, per-subject results, and filtered-band diagnostics. The paper reports 0.084 for High Gamma, but Table 10 does not specify the dataset preprocessing and aggregation details needed to establish an exact reproduction; the public benchmark repository documents a compatible protocol, not proof that it is identical to the paper authors' evaluation. Results from this runner must therefore be described as an independent, protocol-aligned replication attempt, with any score difference reported as observed. A partial-subject smoke run is not a full-dataset result.
 
 The Kaggle kernel is configured as private and requests a T4 GPU. Run it from this directory:
 
@@ -68,4 +68,4 @@ kaggle kernels output oblivicore/neurorvq-table-10-high-gamma-replication \
   -p remote_outputs/neurorvq-table10
 ```
 
-The raw EDF cache and downloaded checkpoint are stored under `/kaggle/temp`; only aggregate JSON/CSV evidence is written under `/kaggle/working`. The HGD dataset is CC BY 4.0 and the upstream checkpoint/source has CC BY-NC 4.0 terms. Neither raw EEG nor checkpoint files belong in the public evidence branch. A successful full 14-subject run, with its retrieved metrics and exact run manifest, is still required before calling the Table 10 number reproduced.
+The raw EDF cache and downloaded checkpoint are stored under `/kaggle/temp`; only aggregate JSON/CSV evidence is written under `/kaggle/working`. The HGD dataset is CC BY 4.0 and the upstream checkpoint/source has CC BY-NC 4.0 terms. Neither raw EEG nor checkpoint files belong in the public evidence branch. A successful full 14-subject run and retrieved metrics are still required before reporting a benchmark result; even then, the method should be called protocol-aligned unless the authors' exact Table 10 data preparation and aggregation are independently confirmed.
