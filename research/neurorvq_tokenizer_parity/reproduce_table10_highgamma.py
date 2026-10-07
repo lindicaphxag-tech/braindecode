@@ -201,7 +201,7 @@ def main() -> None:
         "run_id": run_id,
         "status": "running",
         "started_utc": datetime.now(timezone.utc).isoformat(),
-        "braindecode_commit": _BRAindeCODE_COMMIT,
+        "braindecode_commit": _BRAiNDECODE_COMMIT,
         "checkpoint": {"repo_id": _HF_REPO, "revision": _HF_REVISION},
         "dataset": {"name": "Schirrmeister 2017 High Gamma", "license": _DATA_LICENSE,
                     "source": _DATA_URL, "benchmark_protocol": _BENCHMARK_URL,
