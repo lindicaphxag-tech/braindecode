@@ -1,0 +1,33 @@
+{
+  "format_version": 1,
+  "upstream_pull_request": "https://github.com/braindecode/braindecode/pull/1223",
+  "braindecode_commit": "61194d513e0c5234a2f55923bf157643354e4b42",
+  "reference_repository": "https://github.com/KonstantinosBarmpas/NeuroRVQ",
+  "reference_commit": "926e770d9d16b6aa308404280fa0cc0211a6f9fb",
+  "checkpoint": {
+    "repo_id": "ntinosbarmpas/NeuroRVQ",
+    "revision": "d944b87f44ae0ba2923b2f10d0518f23f6803b76",
+    "filename": "pretrained_models/tokenizers/NeuroRVQ_EEG_tokenizer_v1.pt",
+    "size_bytes": 304130106,
+    "sha256": "d3e850e160b1a558c529466b1c0b8cebe8888a5e02824979886dd226187b2725"
+  },
+  "artifacts": {
+    "script": {
+      "path": "validate_neurorvq_tokenizer_parity.py",
+      "sha256": "bffd9f324b7d7b9862c6a2259af4a101a8d2ac9c6bcfd23a715663939e08334a"
+    },
+    "result": {
+      "path": "results/reference_parity_61194d5.json",
+      "sha256": "08cb20c953f311e407ebe49348370ca9b53ac3e18f70910bfda4a0aa28b6af37"
+    }
+  },
+  "result_summary": {
+    "evaluation_outputs_exact": true,
+    "token_ids_equal": true,
+    "training_outputs_exact": true,
+    "parameter_gradient_max_abs": 7.105427357601002e-15,
+    "parameter_gradient_count": 345,
+    "input_gradient_max_abs": 0.0,
+    "ema_state_equal": true
+  }
+}

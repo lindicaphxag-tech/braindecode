@@ -1,0 +1,28 @@
+{
+  "braindecode_commit": "61194d513e0c5234a2f55923bf157643354e4b42",
+  "reference_source_commit": "926e770d9d16b6aa308404280fa0cc0211a6f9fb",
+  "expected_reference_source_commit": "926e770d9d16b6aa308404280fa0cc0211a6f9fb",
+  "checkpoint_repo_revision": "d944b87f44ae0ba2923b2f10d0518f23f6803b76",
+  "checkpoint_size_bytes": 304130106,
+  "checkpoint_sha256": "d3e850e160b1a558c529466b1c0b8cebe8888a5e02824979886dd226187b2725",
+  "python": "3.12.4",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "torch": "2.8.0+cpu",
+  "numpy": "2.2.6",
+  "cuda_available": false,
+  "random_seed": 43,
+  "input_shape": [
+    2,
+    3,
+    400
+  ],
+  "eval_target_max_abs": 0.0,
+  "eval_reconstruction_max_abs": 0.0,
+  "eval_codes_equal": true,
+  "train_target_max_abs": 0.0,
+  "train_reconstruction_max_abs": 0.0,
+  "trainable_parameter_gradient_max_abs": 7.105427357601002e-15,
+  "trainable_parameter_gradient_count": 345,
+  "input_gradient_max_abs": 0.0,
+  "ema_state_equal_after_one_step": true
+}
