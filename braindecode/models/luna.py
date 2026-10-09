@@ -22,7 +22,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from einops import rearrange
 
-from braindecode.functional import rotate_pairs
+from braindecode.functional import rotate_pairs, spectral_input
 from braindecode.models.base import EEGModuleMixin
 from braindecode.models.util import extract_channel_locations_from_chs_info
 from braindecode.modules.blocks import PatchTokenizer
@@ -285,9 +285,9 @@ class LUNA(EEGModuleMixin, nn.Module, license="apache-2.0"):
         mask: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         num_channels = channel_locations.shape[1]
-        x_signal = self.tokenizer._prepare_input(x_signal)
+        x_signal = self.tokenizer.prepare_input(x_signal)
         if mask is not None:
-            mask = self.tokenizer._prepare_input(mask)
+            mask = self.tokenizer.prepare_input(mask)
         num_patches_per_channel = x_signal.shape[-1] // self.patch_size
         x_patched = self.patch_embed(x_signal)
         freq_embed = self.freq_embed(x_signal)
@@ -306,6 +306,11 @@ class LUNA(EEGModuleMixin, nn.Module, license="apache-2.0"):
             )  # (B, N, 1), since a patch is either fully masked or not
             x_masked = torch.where(mask.bool(), mask_tokens, x_masked)
 
+        dtype = channel_locations.dtype
+        # Normalise in at least float32: the 1e-8 below underflows float16.
+        channel_locations = channel_locations.to(
+            torch.promote_types(dtype, torch.float32)
+        )
         channel_min = torch.min(channel_locations, dim=1, keepdim=True)[0]
         channel_max = torch.max(channel_locations, dim=1, keepdim=True)[0]
         channel_locations = (channel_locations - channel_min) / (
@@ -319,7 +324,7 @@ class LUNA(EEGModuleMixin, nn.Module, license="apache-2.0"):
 
         channel_locations = nerf_positional_encoding(
             channel_locations, self.patch_embed_size
-        )
+        ).to(dtype)
         channel_locations_emb = self.channel_location_embedder(channel_locations)
 
         x_tokenized = rearrange(x_masked, "B (C t) D -> (B t) C D", C=num_channels)
@@ -449,7 +454,8 @@ def nerf_positional_encoding(coords: torch.Tensor, embed_size: int) -> torch.Ten
     device = coords.device
     freqs = embed_size // (2 * dim)
     leftover = embed_size - freqs * 2 * dim
-    freq_bands = 2.0 ** torch.arange(freqs, device=device).float()
+    work = torch.promote_types(coords.dtype, torch.float32)
+    freq_bands = 2.0 ** torch.arange(freqs, device=device, dtype=work)
     scaled_coords = coords.unsqueeze(-1) * freq_bands.view(
         1, 1, 1, -1
     )  # (N, C, dim, freqs)
@@ -463,7 +469,8 @@ def nerf_positional_encoding(coords: torch.Tensor, embed_size: int) -> torch.Ten
     if leftover > 0:
         pad = torch.zeros(N, C, leftover, device=device, dtype=coords.dtype)
         encoded = torch.cat([encoded, pad], dim=-1)
-    return encoded
+    # Sin/cos run in float32 at least (float32 frequency bands); return coords' dtype.
+    return encoded.to(coords.dtype)
 
 
 class _ChannelEmbeddings(nn.Module):
@@ -526,13 +533,13 @@ class _FrequencyFeatureEmbedder(nn.Module):
         x = x.view(B, C, S, self.patch_size)
 
         freq_representation = fft.rfft(
-            x, dim=-1
+            spectral_input(x), dim=-1
         )  # (B, C, num_patches, patch_size // 2 + 1)
         magnitude = torch.abs(freq_representation)
         phase = torch.angle(freq_representation)
 
         # Concatenate magnitude and phase along the frequency axis (last dimension)
-        freq_features = torch.cat((magnitude, phase), dim=-1)
+        freq_features = torch.cat((magnitude, phase), dim=-1).to(x)
         # Map frequency features to embedding dimension
         embedded = self.frequency_to_embed(
             freq_features
@@ -893,7 +900,8 @@ class _PatchEmbedNetwork(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         x: (B, C, T)
-        output: (B, C*S, D) where S = T//patch_size, D = embed_dim
+        output: (B, C*S, D) where D = embed_dim and S = ceil(T / patch_size)
+        for ``on_non_divisible="pad"``, T // patch_size otherwise
         """
         x = rearrange(self.tokenizer(x), "B C S P -> B (C S) P")
         x = x.unsqueeze(1)

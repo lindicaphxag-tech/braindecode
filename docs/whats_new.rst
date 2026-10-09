@@ -28,6 +28,13 @@ Current 1.8.1 (2026-08-31)
 Enhancements
 ============
 
+- Add :class:`braindecode.models.TFMTokenizer`, the time-frequency motif tokenizer
+  for single-channel EEG of Pradeepkumar et al. (ICLR 2026) (:gh:`1202` by
+  `lindicaphxag-tech <https://github.com/lindicaphxag-tech>`_).
+- Add :class:`braindecode.models.EEGCLIP`, a dual encoder that aligns EEG
+  windows and text descriptions with a symmetric contrastive objective; the
+  text encoder is optional and user-supplied (:gh:`1200` by `lindicaphxag-tech`_).
+- The pretrained-compatibility test now covers every model class with released weights (NeuroRVQ, MAPA, BrainOmni, BrainTokenizer and the SignalJEPA heads added), checks that the list is complete, and runs REVE's cases without network access (:gh:`1252` by `Bruno Aristimunha`_)
 - :class:`braindecode.models.NeuroRVQ` now reuses the LaBraM attention block
   instead of a private copy, and the K-means codebook initialisation in
   :mod:`braindecode.modules.quantization` uses ``torch.cdist`` (about 6x faster,
@@ -79,6 +86,27 @@ Enhancements
 
 - Generate a version-scoped ``llms.txt`` and selected Markdown documentation
   entry points with source-commit attribution and critical-page coverage checks.
+- Add :class:`braindecode.models.NeuroRVQTokenizer`, the released NeuroRVQ
+  EEG tokenizer: reconstruction and discrete codes (:gh:`1223` by `lindicaphxag-tech`_).
+- Add :class:`braindecode.models.AXON`, an axis-factorized EEG foundation
+  model whose layers mix a temporal and a spatial attention path with a
+  per-token gate, with pretrained weights on the Hugging Face Hub
+  (:gh:`1182` by `Mahir Jain`_).
+- :class:`braindecode.models.NeuroRVQ` and
+  :class:`braindecode.models.NeuroRVQTokenizer` take ``modality`` (``"eeg"``,
+  ``"ecg"``, ``"emg"``, ``"ppg"``), the settings of the authors' four released
+  packages; the seven released checkpoints load with ``from_pretrained`` from
+  ``braindecode/neurorvq-{eeg,ecg,emg}-pretrained`` and
+  ``braindecode/neurorvq-tokenizer-{eeg,ecg,emg,ppg}-pretrained``
+  (``load_pretrained_weights`` is removed). The tokenizer reconstruction now
+  equals the authors' code (it differed by up to 6e-8);
+  ``statistic_code_usage=True`` reproduces their eval-time code-usage EMA.
+  Builds on :gh:`1090` and :gh:`1223` by `lindicaphxag-tech`_ (:gh:`1254` by
+  `Bruno Aristimunha`_).
+
+- Add :class:`braindecode.models.TMSANet`, the motor-imagery convolution and
+  local/global attention model of Zhao and Zhu (2025)
+  (:gh:`1209` by `lindicaphxag-tech`_).
 
 - Add :class:`braindecode.models.SeizureTransformer`, the U-shaped convolution
   and Transformer seizure detector of Wu et al. (2025) that won the 2025 SzCORE
@@ -146,16 +174,17 @@ Enhancements
   official release) (:gh:`1100` by `Adam Mounir`_).
 
 - Add :class:`braindecode.models.BrainTokenizer`, the EEG/MEG VQ-VAE tokenizer of
-  BrainOmni (NeurIPS 2025), which strictly loads the authors' raw checkpoint
-  (:gh:`1043` by `Bruno Aristimunha`_).
+  BrainOmni (NeurIPS 2025), with the released weights converted to
+  ``braindecode/braintokenizer-pretrained`` (:gh:`1043` by `Bruno Aristimunha`_).
 - Add :class:`braindecode.models.PopulationTransformer` (PopT, Chau et al. 2024),
   an iEEG population model over per-electrode features and coordinates, with
   pretrained weights at ``braindecode/popt-pretrained`` (:gh:`1105` by
   `Adam Mounir`_).
 
 - Add :class:`braindecode.models.BrainOmni`, the BrainOmni downstream classifier
-  on a frozen :class:`braindecode.models.BrainTokenizer`, which strictly loads the
-  authors' raw tiny and base checkpoints (:gh:`1043` by `Bruno Aristimunha`_).
+  on a frozen :class:`braindecode.models.BrainTokenizer`, with the released tiny
+  and base weights converted to ``braindecode/brainomni-tiny-pretrained`` and
+  ``braindecode/brainomni-base-pretrained`` (:gh:`1043` by `Bruno Aristimunha`_).
 
 - Add :class:`braindecode.models.VEMG2Pose`,
   :class:`braindecode.models.NeuroPose`, and
@@ -227,6 +256,35 @@ Requirements
 Bug fixes
 ==========
 
+- Model fixes caught by new CPU-only integration checks (complex tensors, host syncs, kernel gaps, device/dtype follow, training after ``inference_mode``, deepcopy/pickle): BrainOmni/BrainTokenizer SELU trains on Gaudi, EEGSym pools with ``avg_pool2d``, FBCNet/FBMSNet/FBLightConvNet and LUNA run in float16, EEGMiner and AttnSleep deep-copy after training, Labram and NeuroRVQ pickle, SignalJEPA heads accept ``channel_strategy``, and tensors built in ``forward`` follow the input in CodeBrain, TCFormer, LUNA, MVPFormer, BrainOmni, ZUNA, DIVER1 and EEGDINO; float32 outputs unchanged (:gh:`1253` by `Bruno Aristimunha`_)
+- :class:`braindecode.models.BrainOmni` and :class:`braindecode.models.BrainTokenizer`
+  now run forward on Intel Gaudi (HPU) in lazy mode: the SEANet LSTM input is
+  permuted as a 4D view, which Gaudi compiles; values are unchanged
+  (:gh:`1249` by `Bruno Aristimunha`_)
+- :class:`braindecode.models.EMG2QwertyNet` and :class:`braindecode.models.MetaNeuromotorHand`
+  give correct outputs on Intel Gaudi (HPU) in eager mode: the rotation-invariant
+  MLP rolls a contiguous copy of its input, since Gaudi eager mode rolls a
+  non-contiguous tensor wrongly (:gh:`1249` by `Bruno Aristimunha`_)
+- Models now run after ``model.to(torch.float64)``, ``torch.bfloat16`` or
+  ``torch.float16``, and their FFT, STFT and filter-bank front ends run on Intel
+  Gaudi (HPU): the new :func:`braindecode.functional.spectral_input` gives these
+  ops a float32 (at least) input, on the CPU for HPU tensors since PyTorch has no
+  complex bfloat16 and Gaudi no complex dtype; the real result is cast back with
+  ``.to(x)``. Used by :class:`braindecode.models.BIOT`, :class:`braindecode.models.BrainBERT`,
+  :class:`braindecode.models.Brant`, :class:`braindecode.models.CBraMod`,
+  :class:`braindecode.models.CodeBrain`, :class:`braindecode.models.ContraWR`,
+  :class:`braindecode.models.DIVER1`, :class:`braindecode.models.EEGDINO`,
+  :class:`braindecode.models.EMG2QwertyNet`, :class:`braindecode.models.LUNA`,
+  :class:`braindecode.models.MAPA`, :class:`braindecode.models.MetaNeuromotorHand`,
+  :class:`braindecode.models.SensingDynamics`, :class:`braindecode.modules.FilterBankLayer`
+  (FBCNet, FBMSNet, FBLightConvNet, IFNet), :class:`braindecode.modules.GeneralizedGaussianFilter`
+  and :func:`braindecode.functional.hilbert_freq`. Tensors built inside ``forward`` of
+  :class:`braindecode.models.BENDR`, :class:`braindecode.models.CodeBrain`,
+  :class:`braindecode.models.DGCNN`, :class:`braindecode.models.REVE`,
+  :class:`braindecode.models.SyncNet` and :class:`braindecode.models.ZUNA` follow the
+  input's dtype. CodeBrain can also train after a first forward under
+  ``torch.inference_mode()``. Float32 outputs and gradients are unchanged (:gh:`1246` by `Bruno Aristimunha`_)
+- Delete each passing test's ``tmp_path`` so the Windows CI runner no longer runs out of disk (:gh:`1251` by `Bruno Aristimunha`_).
 - :class:`braindecode.models.BrainOmni` and :class:`braindecode.models.BrainTokenizer`
   now type CTF and KIT axial MEG gradiometers as gradiometers, as the released
   BrainOmni code does; they were typed as magnetometers, which gave them the
@@ -267,6 +325,7 @@ Bug fixes
 - Fix :class:`braindecode.models.CBraMod` failing in ``forward`` for any
   ``patch_size`` other than 200: the spectral reshape hard-coded 101 rFFT bins
   instead of ``patch_size // 2 + 1`` (:gh:`1240` by `Bruno Aristimunha`_).
+- Fix ``from_pretrained`` ignoring the saved geometry when called with an explicit ``chs_info=None`` or ``n_chans=None``, and :class:`braindecode.models.Labram` with ``neural_tokenizer=False`` ignoring ``on_non_divisible`` (:gh:`1250` by `Bruno Aristimunha`_).
 
 - Fix :class:`braindecode.models.Deep4Net` short-input auto-scaling with ``split_first_layer=True`` so the scaled ``filter_time_length`` is used by the actual :class:`braindecode.modules.CombinedConv` temporal kernel instead of retaining the original constructor value. By `lindicaphxag-tech`_.
 
@@ -2147,6 +2206,7 @@ Authors
 .. _Aditya Singh: https://github.com/adityasingh2400
 .. _Julien Gadonneix: https://github.com/julien-gadonneix
 .. _Li Qing: https://github.com/qinxwew
+.. _Mahir Jain: https://github.com/mahirjain01
 .. _Arthur031221: https://github.com/Arthur031221
 .. _Raghav Rathi: https://github.com/raghav-rathi
 

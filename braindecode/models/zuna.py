@@ -396,10 +396,11 @@ class _RotaryPositionEmbedding(nn.Module):
         rotary_sine = rotary_sine.unsqueeze(0).unsqueeze(2)
 
         batch_size, sequence_length, num_heads, head_dim = query.shape
-        query_pairs = query.float().reshape(
+        work = torch.promote_types(query.dtype, torch.float32)
+        query_pairs = query.to(work).reshape(
             batch_size, sequence_length, num_heads, head_dim // 2, 2
         )
-        key_pairs = key.float().reshape(
+        key_pairs = key.to(work).reshape(
             batch_size, sequence_length, num_heads, head_dim // 2, 2
         )
         rotated_query = self.merge_rotary_pairs(
@@ -409,10 +410,10 @@ class _RotaryPositionEmbedding(nn.Module):
             torch.stack((-key_pairs[..., 1], key_pairs[..., 0]), dim=-1)
         )
 
-        query = (query.float() * rotary_cosine + rotated_query * rotary_sine).type_as(
+        query = (query.to(work) * rotary_cosine + rotated_query * rotary_sine).type_as(
             query
         )
-        key = (key.float() * rotary_cosine + rotated_key * rotary_sine).type_as(key)
+        key = (key.to(work) * rotary_cosine + rotated_key * rotary_sine).type_as(key)
         return query, key
 
 
@@ -539,14 +540,18 @@ class _TransformerBlock(nn.Module):
         rotary_cosine: torch.Tensor,
         rotary_sine: torch.Tensor,
     ) -> torch.Tensor:
-        input_tensor = input_tensor.float()
+        # Residual stream in float32 at least; the sub-layers run in the
+        # weights' dtype.
+        dtype = self.attention.wq.weight.dtype
+        residual_dtype = torch.promote_types(dtype, torch.float32)
+        input_tensor = input_tensor.to(residual_dtype)
         hidden_states = input_tensor + self.attention_norm_post(
             self.attention(
-                self.attention_norm(input_tensor), rotary_cosine, rotary_sine
-            ).float()
+                self.attention_norm(input_tensor).to(dtype), rotary_cosine, rotary_sine
+            ).to(residual_dtype)
         )
         return hidden_states + self.ffn_norm_post(
-            self.feed_forward(self.ffn_norm(hidden_states)).float()
+            self.feed_forward(self.ffn_norm(hidden_states).to(dtype)).to(residual_dtype)
         )
 
 
@@ -614,4 +619,4 @@ class _ZUNAEncoder(nn.Module):
         register_latents = hidden_states.reshape(batch_size, sequence_length, 2, -1)[
             :, :, 0
         ]
-        return self.output(self.norm(register_latents))
+        return self.output(self.norm(register_latents).to(self.output.weight.dtype))

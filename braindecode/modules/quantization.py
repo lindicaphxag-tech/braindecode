@@ -110,6 +110,7 @@ class EMACodebook(nn.Module):
         self.epsilon = epsilon
         self.threshold_ema_dead_code = threshold_ema_dead_code
         self.codebook_size = codebook_size
+        self.kmeans_init = kmeans_init
         self.kmeans_iters = kmeans_iters
 
         embed = torch.zeros(codebook_size, dim)
@@ -146,8 +147,12 @@ class EMACodebook(nn.Module):
         for _ in range(self.kmeans_iters):
             # Exact (non-matmul) mode keeps the released ``kmeans`` assignments
             # without materialising the (n_samples, codebook_size, dim) broadcast.
+            # cdist has no bf16/fp16 kernel: compute in at least float32.
+            work = torch.promote_types(dtype, torch.float32)
             distances = torch.cdist(
-                samples, centers, compute_mode="donot_use_mm_for_euclid_dist"
+                samples.to(work),
+                centers.to(work),
+                compute_mode="donot_use_mm_for_euclid_dist",
             )
             buckets = distances.argmin(dim=-1)
             bins = torch.bincount(buckets, minlength=self.codebook_size)
@@ -167,7 +172,10 @@ class EMACodebook(nn.Module):
         # First-batch K-means is deliberately stateful and data-dependent, so it
         # cannot be captured by ``torch.export``. Evaluation exports consume an
         # already initialized or pretrained codebook and leave its buffers alone.
-        if torch.compiler.is_compiling() and not self.training:
+        # Without k-means init there is nothing to do (and no host sync).
+        if not self.kmeans_init or (
+            torch.compiler.is_compiling() and not self.training
+        ):
             return
         if bool(self.inited.item()):
             return
@@ -200,8 +208,9 @@ class EMACodebook(nn.Module):
 
     @torch.no_grad()
     def quantize(self, x: torch.Tensor) -> torch.Tensor:
-        x = x.float()
-        embed = self.embed.t().float()
+        work = torch.promote_types(x.dtype, torch.float32)
+        x = x.to(work)
+        embed = self.embed.t().to(work)
         dist = (
             x.pow(2).sum(1, keepdim=True)
             - 2 * x @ embed
@@ -217,7 +226,9 @@ class EMACodebook(nn.Module):
         x = rearrange(x, "... dim -> (...) dim")
         self.init_embed_(x)
         embed_ind = self.quantize(x)
-        embed_onehot = F.one_hot(embed_ind, self.codebook_size).type(dtype)
+        # F.one_hot reads the index range on the host (a device sync).
+        codes = torch.arange(self.codebook_size, device=embed_ind.device)
+        embed_onehot = (embed_ind.unsqueeze(-1) == codes).type(dtype)
         embed_ind = embed_ind.view(*shape[:-1])
         quantize = self.dequantize(embed_ind).type(dtype)
 
@@ -320,7 +331,8 @@ class VectorQuantizer(nn.Module):
                 quantize = _rotate_to(x, quantize).to(input_dtype)
             else:
                 quantize = x + (quantize - x).detach()
-        loss = F.mse_loss(x.float(), quantize.detach().float()) * 0.25
+        work = torch.promote_types(x.dtype, torch.float32)
+        loss = F.mse_loss(x.to(work), quantize.detach().to(work)) * 0.25
         if not self.training:
             loss = loss.detach()
         quantize = self.project_out(quantize)
@@ -345,8 +357,6 @@ class ResidualVectorQuantizer(nn.Module):
         Number of residual VQ stages stacked sequentially.
     rotation_trick : bool
         Passed through to each :class:`VectorQuantizer` layer.
-    quantize_optimize_method : str
-        Codebook update strategy. Only ``"ema"`` is currently supported.
     """
 
     def __init__(
@@ -356,11 +366,8 @@ class ResidualVectorQuantizer(nn.Module):
         codebook_size: int,
         num_quantizers: int,
         rotation_trick: bool = True,
-        quantize_optimize_method: str = "ema",
     ):
         super().__init__()
-        if quantize_optimize_method != "ema":
-            raise ValueError(f"Only 'ema' supported, got {quantize_optimize_method!r}")
         for name, value in (
             ("dim", dim),
             ("codebook_dim", codebook_dim),

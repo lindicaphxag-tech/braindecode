@@ -112,7 +112,7 @@ class PatchTokenizer(nn.Module):
                     f"({patch_size})."
                 )
         # Padding/cropping for a non-divisible time axis is applied at runtime in
-        # _prepare_input (which works for any input length, not just the
+        # prepare_input (which works for any input length, not just the
         # construction-time n_times), so no padding submodule is stored here.
         # Defined unconditionally (Identity when not learnable) so the attribute
         # always exists for torch.jit.script, which type-checks both branches.
@@ -123,7 +123,20 @@ class PatchTokenizer(nn.Module):
         elif learnable and projection == "linear":
             self.proj = nn.Linear(patch_size, self.emb_dim)
 
-    def _prepare_input(self, x):
+    def prepare_input(self, x):
+        """Pad, crop or reject a time axis not divisible by ``patch_size``.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Input of shape ``(..., n_times)``; any ``n_times`` is accepted.
+
+        Returns
+        -------
+        torch.Tensor
+            ``x`` with a time axis that is a multiple of ``patch_size``,
+            handled as set by ``on_non_divisible``.
+        """
         n_times = x.shape[-1]
         remainder = n_times % self.patch_size
         if remainder == 0:
@@ -144,7 +157,7 @@ class PatchTokenizer(nn.Module):
         )
 
     def forward(self, x):
-        x = self._prepare_input(x)
+        x = self.prepare_input(x)
         batch_size, n_chans, _ = x.shape
         if self.learnable and self.projection == "conv":
             x = x.flatten(0, 1).unsqueeze(1)  # (batch * chans, 1, time)
@@ -251,7 +264,7 @@ class MLP(nn.Sequential):
         drop=0.0,
         normalize=False,
     ):
-        self.normalization = nn.LayerNorm if normalize else lambda: None
+        normalization = nn.LayerNorm if normalize else lambda: None
         self.in_features = in_features
         self.out_features = out_features or self.in_features
         if hidden_features:
@@ -270,7 +283,7 @@ class MLP(nn.Sequential):
                 [
                     nn.Linear(in_features=before, out_features=after),
                     self.activation(),
-                    self.normalization(),
+                    normalization(),
                 ]
             )
 

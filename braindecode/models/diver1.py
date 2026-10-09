@@ -18,7 +18,7 @@ import torch.nn.functional as F
 from einops.layers.torch import Rearrange
 from torch import nn
 
-from braindecode.functional import rotate_pairs
+from braindecode.functional import rotate_pairs, spectral_input
 from braindecode.models.base import EEGModuleMixin
 from braindecode.models.util import (
     INTRACRANIAL_CH_TYPES,
@@ -397,11 +397,10 @@ class DIVER1(EEGModuleMixin, nn.Module, license="apache-2.0"):
         tokens = self.patch_tokenizer(x)
         tokens = self.patch_cnn(tokens)
         if self.spectral_emb is not None:
-            # Preserve the reference's float32 FFT even for float64 tokens.
-            fft_input = tokens.float()
+            # At least float32, as the reference's float32 FFT.
+            fft_input = spectral_input(tokens)
             spectrum = torch.fft.rfft(fft_input, dim=-1, norm="forward")
-            amplitude = spectrum.abs()
-            amplitude = amplitude.to(tokens.dtype)
+            amplitude = spectrum.abs().to(tokens)
             spectral_emb = self.spectral_emb(amplitude)
             tokens = tokens + spectral_emb
         if self.chan_emb is not None:

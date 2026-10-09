@@ -28,6 +28,32 @@ def identity(x):
     return x
 
 
+def spectral_input(x: torch.Tensor) -> torch.Tensor:
+    """Prepare ``x`` for an FFT, STFT or eigendecomposition.
+
+    PyTorch has no complex bfloat16 dtype: CPU and MPS FFTs reject
+    bfloat16/float16, and Intel Gaudi (HPU) has no complex tensors at all.
+    This returns ``x`` in at least float32, moved to the CPU when it lives on
+    an HPU; float32/float64 CPU/CUDA inputs are returned as they are. Cast a
+    real result back with ``.to(x)`` (the input's dtype and device)::
+
+        spectrum = torch.fft.rfft(spectral_input(x), dim=-1).abs().to(x)
+
+    Parameters
+    ----------
+    x : torch.Tensor
+        Real input of the spectral operation.
+
+    Returns
+    -------
+    torch.Tensor
+        ``x`` in ``promote_types(x.dtype, float32)``, on the CPU for HPU inputs.
+    """
+    if x.device.type == "hpu":
+        x = x.cpu()
+    return x.to(torch.promote_types(x.dtype, torch.float32))
+
+
 def drop_path(
     x, drop_prob: float = 0.0, training: bool = False, scale_by_keep: bool = True
 ):
@@ -176,8 +202,7 @@ def hilbert_freq(x: torch.Tensor, forward_fourier: bool = True) -> torch.Tensor:
     # the complex-valued part in float32 and restore the real-valued contract
     # at the boundary.  Promoting before the FFT also covers backends that do
     # not implement bfloat16 FFT kernels.
-    if input_dtype == torch.bfloat16:
-        x = x.float()
+    x = spectral_input(x)
 
     if forward_fourier:
         seq_len = x.shape[-1]
@@ -435,7 +460,12 @@ def wavelet_decomposition(
     return out.reshape(*leading, -1)
 
 
-def sinusoidal_positional_encoding(n_positions: int, dim: int) -> torch.Tensor:
+def sinusoidal_positional_encoding(
+    n_positions: int,
+    dim: int,
+    device: torch.device | None = None,
+    dtype: torch.dtype = torch.float32,
+) -> torch.Tensor:
     r"""Fixed sine/cosine positional-encoding table of shape ``(n_positions, dim)``.
 
     The standard encoding of Vaswani et al. (2017): for position :math:`p` and
@@ -452,6 +482,10 @@ def sinusoidal_positional_encoding(n_positions: int, dim: int) -> torch.Tensor:
         Number of positions (sequence length) to encode.
     dim : int
         Embedding dimension of each position.
+    device : torch.device or None
+        Device of the table (default: CPU), for tables built inside ``forward``.
+    dtype : torch.dtype
+        Floating dtype the table is computed in.
 
     Returns
     -------
@@ -460,11 +494,12 @@ def sinusoidal_positional_encoding(n_positions: int, dim: int) -> torch.Tensor:
         dropout, or offset.
     """
     dim_even = dim + (dim % 2)
-    position = torch.arange(n_positions).unsqueeze(1).float()
+    position = torch.arange(n_positions, device=device).unsqueeze(1).to(dtype)
     div_term = torch.exp(
-        torch.arange(0, dim_even, 2).float() * (-math.log(10000.0) / dim_even)
+        torch.arange(0, dim_even, 2, device=device).to(dtype)
+        * (-math.log(10000.0) / dim_even)
     )
-    pe = torch.zeros(n_positions, dim_even)
+    pe = torch.zeros(n_positions, dim_even, device=device, dtype=dtype)
     pe[:, 0::2] = torch.sin(position * div_term)
     pe[:, 1::2] = torch.cos(position * div_term)
     # ``.contiguous()`` so an odd-``dim`` truncation owns tight storage -- a
