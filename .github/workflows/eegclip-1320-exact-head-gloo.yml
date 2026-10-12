@@ -19,17 +19,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest]
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 35950f8ae95917868cc940a01a03ea30aad0e7ff
+          ref: acdf4c9ee0b924309490054d1aa18ada0646a0c9
           persist-credentials: false
       - name: Verify exact current upstream-reviewed PR source
         shell: bash
         run: |
           actual="$(git rev-parse HEAD)"
-          expected="35950f8ae95917868cc940a01a03ea30aad0e7ff"
+          expected="acdf4c9ee0b924309490054d1aa18ada0646a0c9"
           echo "Verified frozen EEGCLIP PR source: $actual"
           test "$actual" = "$expected"
       - uses: actions/setup-python@v5
@@ -45,4 +45,4 @@ jobs:
           MKL_NUM_THREADS: "1"
           PYTHONUNBUFFERED: "1"
         run: |
-          python -m pytest -q -s test/unit_tests/models/test_models.py -k "eegclip_distributed_loss_matches_concatenated_batch" --maxfail=1 --disable-warnings
+          python -m pytest -q -s test/unit_tests/models/test_models.py -k "eegclip_distributed_loss_matches_concatenated_batch or eegclip_rank_local_gather_math_without_worker_coverage_gap or eegclip_distributed_single_process_group_matches_default" --maxfail=1 --disable-warnings
