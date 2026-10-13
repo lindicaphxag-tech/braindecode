@@ -1,0 +1,36 @@
+name: Reproduce upstream xdist EEGCLIP PR tests against exact unchanged head
+on:
+  push:
+    branches: ["validation/eegclip-xdist-pr1320-20261013"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  actual-xdist-ddp-regression:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Verify only workflow file differs from original PR source and tests
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD^)" = "b3a30049eaf5542988f8abd708505d8f32754fd5"
+          test "$(git diff --name-only HEAD^ HEAD)" = ".github/workflows/exact-pr1320-xdist-regression.yml"
+      - name: Install original test dependency contract
+        run: python -m pip install --disable-pip-version-check -e ".[tests]"
+      - name: Run all EEGCLIP upstream real PyTorch-DDP and model tests under real pytest-xdist worker distribution
+        env:
+          OMP_NUM_THREADS: "1"
+          MKL_NUM_THREADS: "1"
+          PYTHONUNBUFFERED: "1"
+        run: python -m pytest -q -n 2 --dist worksteal test/unit_tests/models/test_models.py -k "eegclip" -ra --durations=10
