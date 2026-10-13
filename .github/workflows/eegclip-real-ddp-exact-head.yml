@@ -1,0 +1,32 @@
+name: Independent exact-head real-DDP EEGCLIP gradient check
+on:
+  push:
+    branches:
+      - "ci/eegclip-actual-ddp-three-os-20261013"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  actual-ddp-wrapper:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkout immutable source from the existing upstream PR
+        shell: bash
+        run: |
+          git fetch origin 4df480d7b463810b3f7ba2655cf033e9dbca4a99
+          git checkout --detach 4df480d7b463810b3f7ba2655cf033e9dbca4a99
+          test "$(git rev-parse HEAD)" = 4df480d7b463810b3f7ba2655cf033e9dbca4a99
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install source and official test dependencies
+        run: python -m pip install --disable-pip-version-check -e ".[tests]"
+      - name: Native DDP wrapper versus 5-pair central autograd oracle
+        run: python -m pytest -q test/unit_tests/models/test_models.py -k "eegclip_actual_ddp_wrapper_matches_full_batch_gradient"
