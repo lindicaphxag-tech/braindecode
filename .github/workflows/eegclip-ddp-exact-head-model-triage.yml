@@ -41,7 +41,7 @@ jobs:
         shell: bash
         run: |
           if [ "${{ matrix.selection }}" = "eegclip-core" ]; then
-            python -m pytest -vv --faulthandler-timeout=180 --timeout=180 --timeout-method=thread --durations=20 test/unit_tests/models/ -k 'eegclip and not test_model_compiled' -n 0
+            python -m pytest -vv -o faulthandler_timeout=180 --timeout=180 --timeout-method=thread --durations=20 test/unit_tests/models/ -k 'eegclip and not test_model_compiled' -n 0
           else
-            python -m pytest -vv --faulthandler-timeout=180 --timeout=180 --timeout-method=thread --durations=30 test/unit_tests/models/test_models.py -k 'not test_model_compiled and not eegclip' -n 2 --dist worksteal
+            python -m pytest -vv -o faulthandler_timeout=180 --timeout=180 --timeout-method=thread --durations=30 test/unit_tests/models/test_models.py -k 'not test_model_compiled and not eegclip' -n 2 --dist worksteal
           fi
