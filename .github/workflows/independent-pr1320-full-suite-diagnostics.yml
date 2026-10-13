@@ -1,0 +1,70 @@
+name: Independent PR1320 full-suite bottleneck diagnostics
+on:
+  push:
+    branches: ["validation/eegclip-1320-official-suite-bottleneck-20261013"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  exact-head-eegclip:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 28
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    env:
+      UV_TORCH_BACKEND: cpu
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v7
+      - name: Prove unchanged official PR source head
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD^)" = "b3a30049eaf5542988f8abd708505d8f32754fd5"
+          git show --format=%H --no-patch HEAD^
+      - name: Install official Braindecode extras and timeout diagnostics
+        run: uv pip install --system -e ".[tests,moabb,hub,eegprep,typing,viz]" pytest-timeout
+      - name: Confirm torch and Braindecode source
+        run: python -c "import torch,braindecode; print('torch',torch.__version__, 'braindecode',braindecode.__version__)"
+      - name: Exhaustive EEGCLIP-specific unit suite with per-test timeout
+        shell: bash
+        run: |
+          python -m pytest -vv -rA --durations=20 --timeout=130 test/unit_tests/models/test_models.py -k EEGCLIP --maxfail=1
+  broad-noncompiled-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 28
+    env:
+      UV_TORCH_BACKEND: cpu
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      XLA_PYTHON_CLIENT_PREALLOCATE: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v7
+      - name: Verify exact production PR source HEAD
+        shell: bash
+        run: test "$(git rev-parse HEAD^)" = "b3a30049eaf5542988f8abd708505d8f32754fd5"
+      - name: Install matching official extras, timeout and fail-first options
+        run: uv pip install --system -e ".[tests,moabb,hub,eegprep,typing,viz]" pytest-timeout
+      - name: Source-level real test suite WITHOUT heavy unrelated compiled-model cases
+        shell: bash
+        run: |
+          python -m pytest -vv -x -ra -n 2 --dist worksteal --timeout=160 --durations=25 test/ -k "not test_model_compiled and not network" 2>&1 | tee independent-pr1320-suite-diagnostics.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: independent-pr1320-broad-suite-diagnostics
+          path: independent-pr1320-suite-diagnostics.log
