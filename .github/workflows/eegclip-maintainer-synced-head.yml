@@ -1,0 +1,42 @@
+name: Recheck exact new maintainer-synced Braindecode EEGCLIP source
+on:
+  push:
+    branches: ["validation/eegclip-merged-master-head-42621-20261013"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  full-eegclip-model-and-xdist:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Pin EXACT maintainer-synced PR #1320 source plus unrelated mainline update
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD^)" = "42621f6c6b381d7a57343c4987104d2cc73bc936"
+          test "$(git diff --name-only HEAD^ HEAD)" = ".github/workflows/eegclip-maintainer-synced-head.yml"
+      - name: Install current merged-master test dependencies
+        run: python -m pip install --disable-pip-version-check -e ".[tests]"
+      - name: Run actual merged-master EEGCLIP regression scope (normal pytest)
+        env:
+          PYTHONUNBUFFERED: "1"
+          OMP_NUM_THREADS: "1"
+          MKL_NUM_THREADS: "1"
+        run: python -m pytest -q test/unit_tests/models/test_models.py -k "eegclip" -ra --durations=10
+      - name: Run exact merged-master EEGCLIP regressions under official pytest-xdist style
+        env:
+          PYTHONUNBUFFERED: "1"
+          OMP_NUM_THREADS: "1"
+          MKL_NUM_THREADS: "1"
+        run: python -m pytest -q -n 2 --dist worksteal test/unit_tests/models/test_models.py -k "eegclip" -ra --durations=10
