@@ -1,0 +1,48 @@
+name: EEGCLIP exact-PR-source breadth triage: split global noncompiled tests
+on:
+  push:
+    branches: [validation/eegclip-ddp-split-global-suite-20261013]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  independent-current-head-subsets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    strategy:
+      fail-fast: false
+      matrix:
+        subset: [models-integration, nonmodel-unit]
+    env:
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      PYTHONFAULTHANDLER: '1'
+      UV_TORCH_BACKEND: cpu
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: latest
+      - name: Ensure all production and test source bytes match exact official #1320
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD^)" = "b3a30049eaf5542988f8abd708505d8f32754fd5"
+          test "$(git diff --name-only HEAD^ HEAD)" = ".github/workflows/eegclip-ddp-split-global-suite.yml"
+      - name: Install official all-extras tests on CPU-only PyTorch
+        run: uv pip install --system -e ".[tests,moabb,hub,eegprep,typing,viz]" pytest-timeout
+      - name: Download source data needed by existing MOABB-backed model tests
+        shell: bash
+        run: python -c "from moabb.datasets import BNCI2014_001; BNCI2014_001().get_data([1, 2, 4])"
+      - name: Split heavy original suite by test modules, record explicit timeout
+        shell: bash
+        run: |
+          if [ "${{ matrix.subset }}" = "models-integration" ]; then
+            python -m pytest -vv --timeout=240 -o faulthandler_timeout=180 --durations=25 -n 2 --dist worksteal test/unit_tests/models/test_integration.py -k 'not test_model_compiled'
+          else
+            find test/unit_tests -name 'test_*.py' ! -path 'test/unit_tests/models/*' -print0 | xargs -0 python -m pytest -vv --timeout=240 -o faulthandler_timeout=180 --durations=25 -n 2 --dist worksteal -k 'not test_model_compiled'
+          fi
