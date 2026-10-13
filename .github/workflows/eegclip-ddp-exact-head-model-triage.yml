@@ -33,8 +33,13 @@ jobs:
       - name: Prove original Braindecode PR source remains untouched by validation
         shell: bash
         run: |
-          test "$(git rev-parse HEAD^)" = "b3a30049eaf5542988f8abd708505d8f32754fd5"
-          git show --name-only --format="" HEAD | grep -E '^.github/workflows/'
+          git cat-file -e 'b3a30049eaf5542988f8abd708505d8f32754fd5^{commit}'
+          git diff --name-only b3a30049eaf5542988f8abd708505d8f32754fd5 HEAD | tee /tmp/all_source_diffs
+          test -s /tmp/all_source_diffs
+          if grep -Ev '^\\.github/workflows/' /tmp/all_source_diffs; then
+            echo 'Non-workflow production source unexpectedly changed'
+            exit 1
+          fi
       - name: Install current exact PR model with official suite dependencies
         run: uv pip install --system -e ".[tests,moabb,hub,eegprep,typing,viz]" pytest-timeout
       - name: Run model-unit exact head without blanket xdist or coverage race
