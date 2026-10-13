@@ -25,4 +25,4 @@ jobs:
       - name: Verify no deadlocked collectives and original global DDP equivalence
         run: >-
           python -m pytest -q test/unit_tests/models/test_models.py
-          -k "eegclip_global_collective_preflight or eegclip_rank_local_gather_math or eegclip_actual_ddp_wrapper_matches_full_batch_gradient or eegclip_distributed_loss_matches_concatenated_batch"
+          -k "eegclip_global_collective_preflight or eegclip_rank_local_gather_math or eegclip_actual_ddp_wrapper_matches_full_batch_gradient or eegclip_one_empty_rank_nonempty_global_matches_ddp_oracle or eegclip_distributed_loss_matches_concatenated_batch"
