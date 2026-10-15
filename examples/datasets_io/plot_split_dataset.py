@@ -16,7 +16,11 @@ training, testing, and evaluating your models.
 #
 # License: BSD (3-clause)
 
-from braindecode.datasets import MOABBDataset
+from braindecode.datasets import (
+    MOABBDataset,
+    create_grouped_folds,
+    validate_group_disjointness,
+)
 from braindecode.preprocessing import create_windows_from_events
 
 ###############################################################################
@@ -84,6 +88,28 @@ splits = dataset.split(
 )
 print(splits)
 splits["test"].description
+
+###############################################################################
+# Leakage-safe session cross-validation
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#
+# Splitting window indices at random can place windows from the same recording
+# or acquisition session in training and evaluation. The grouped splitter
+# works on the recording-level description table, so a whole session stays
+# on one side of each fold even after creating windows.
+#
+# The example loads one subject with two sessions, so a two-fold
+# leave-one-session-out split is possible. For cross-subject evaluation, load
+# multiple subjects and use group_by="subject" instead.
+
+grouped_folds = create_grouped_folds(
+    dataset, group_by="session", n_splits=2
+)
+for fold in grouped_folds:
+    validate_group_disjointness(
+        fold["train"], fold["test"], group_by="session"
+    )
+    print("Held-out sessions:", fold["test"].description["session"].unique())
 
 ###############################################################################
 # Observation

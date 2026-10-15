@@ -11,6 +11,7 @@ from .bcicomp import BCICompetitionIVDataset4
 from .bids import BIDSDataset, BIDSEpochsDataset
 from .chb_mit import CHBMIT
 from .collate import pad_channels_collate
+from .grouped_cv import create_grouped_folds, validate_group_disjointness
 from .mne import create_from_mne_epochs, create_from_mne_raw
 from .moabb import BNCI2014_001, HGD, MOABBDataset
 from .nmt import NMT
@@ -26,6 +27,8 @@ __all__ = [
     "RecordDataset",
     "RawDataset",
     "BaseConcatDataset",
+    "create_grouped_folds",
+    "validate_group_disjointness",
     "BIDSDataset",
     "BIDSEpochsDataset",
     "MOABBDataset",
