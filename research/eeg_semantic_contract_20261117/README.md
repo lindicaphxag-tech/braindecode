@@ -27,3 +27,25 @@ The public research branch now factors the source derivation basis once and reus
 The rational solver now prioritizes channels that are **already measured with the same declared name and voltage contrast**. In a redundant montage such as `[A-R, B-R, A-B]`, keeping the exact input order returns the identity matrix; reordering those same inputs returns a direct permutation, not an unnecessary reconstruction of `A-B` from `(A-R)-(B-R)`. The ideal contrasts are equivalent, but independently recorded traces can differ through channel-specific noise. Two synthetic regressions cover identity and permutation in this redundant setting.
 
 This behavior is confined to the external research branch; no Braindecode upstream API, checkpoint or #1577 code was changed. GitHub Actions for this research-branch commit did not report a workflow run at the time of this update; the main Braindecode PR's successful CI is separate.
+
+## Cross-evidence validation gate (research only)
+
+`src/trust_contract/validation_policy.py` provides a **read-only, opt-in evidence decision** layer that consumes, rather than reimplements, the upstream capabilities already merged in Braindecode:
+- #1241 for existing channel strategies;
+- #1493 for model-card pretraining corpus overlap information;
+- #1558 for pretrained parameter-origin records; and
+- #1208 for the registry-wide runtime model contract checks.
+
+The policy has four outcomes: `ACCEPT` (the supplied evidence meets the narrowly declared checks), `DISCLOSE` (an in-corpus or incompletely traced claim requires a label), `REVIEW` (metadata, feature path, or an applied channel transform is not verified), `REFUSE` (known incompatibility, a claimed held-out overlap, or unloaded parameters in a declared frozen feature scope).
+
+**No inference of model control flow is attempted.** Callers must supply the concrete feature path and actual loaded-parameter names; this is not a second `_pretrained_provenance` implementation and not a general proof that real EEG recordings match checkpoint pretraining. The explicit `channel_transform_applied` flag requires the mapping to have been executed and checked, not just mathematically available.
+
+Run locally without requiring Braindecode or downloading weights:
+
+```bash
+cd research/eeg_semantic_contract_20261117
+python -m pip install -e '.[tests]'
+python -m pytest -q tests/test_validation_policy.py
+```
+
+At development time, 30 local synthetic cases passed. This is a **research-branch test result, not official Braindecode CI**. The package has not loaded any released checkpoint and no upstream API/behavior was changed. A future upstream PR would require a maintainer-agreed scope and explicit native checkpoint evaluation first.
