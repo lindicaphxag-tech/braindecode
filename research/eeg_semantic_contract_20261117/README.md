@@ -21,3 +21,9 @@ Upstream PRs should be opened only once maintainers agree on interface placement
 ## Solver update
 
 The public research branch now factors the source derivation basis once and reuses it for all target channels; the synthetic 128-channel CPU preflight microbenchmark had a three-run median of about 0.134 seconds on the tested machine. This is an offline metadata-validation timing, **not** a Braindecode model speedup or a general hardware performance guarantee. Independent real-model checks remain pending.
+
+## Observed-channel fidelity
+
+The rational solver now prioritizes channels that are **already measured with the same declared name and voltage contrast**. In a redundant montage such as `[A-R, B-R, A-B]`, keeping the exact input order returns the identity matrix; reordering those same inputs returns a direct permutation, not an unnecessary reconstruction of `A-B` from `(A-R)-(B-R)`. The ideal contrasts are equivalent, but independently recorded traces can differ through channel-specific noise. Two synthetic regressions cover identity and permutation in this redundant setting.
+
+This behavior is confined to the external research branch; no Braindecode upstream API, checkpoint or #1577 code was changed. GitHub Actions for this research-branch commit did not report a workflow run at the time of this update; the main Braindecode PR's successful CI is separate.
