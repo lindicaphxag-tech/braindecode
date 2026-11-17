@@ -137,8 +137,21 @@ def classify(source: Manifest, target: Manifest) -> dict:
     unit_ratio = _UNIT_V[source.unit] / _UNIT_V[target.unit]
     matrix: list[list[Fraction]] = []
     basis = _make_source_basis(src)
-    for desired in tgt:
-        coefficients = _solve_basis(basis, desired, len(src))
+    # A declared, directly observed channel is preferable to an algebraic
+    # reconstruction from other channels: both can share the same ideal
+    # contrast while carrying distinct recording noise.
+    measured = {
+        (channel.name, tuple(sorted(channel.coefficients().items()))): j
+        for j, channel in enumerate(source.channels)
+    }
+    for channel, desired in zip(target.channels, tgt):
+        signature = (channel.name, tuple(sorted(channel.coefficients().items())))
+        direct_index = measured.get(signature)
+        coefficients = (
+            [Fraction(int(j == direct_index)) for j in range(len(src))]
+            if direct_index is not None
+            else _solve_basis(basis, desired, len(src))
+        )
         if coefficients is None:
             return {"status": "INCOMPATIBLE", "reason": "target derivation is outside source signal span", "matrix": None}
         matrix.append([coefficient * unit_ratio for coefficient in coefficients])
