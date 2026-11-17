@@ -20,6 +20,28 @@ def test_exact_identity():
     assert classify(x, x)["status"] == "EXACT"
 
 
+
+
+def test_exact_redundant_channel_basis_preserves_measured_identity():
+    # A-B = (A-R) - (B-R) algebraically, but distinct measured traces may
+    # carry their own sensor noise. EXACT must not substitute a reconstruction.
+    source = m([
+        ch("A-R", "A", "R"),
+        ch("B-R", "B", "R"),
+        ch("A-B", "A", "B"),
+    ])
+    report = classify(source, source)
+    assert report["status"] == "EXACT"
+    assert report["reason"] == "identity"
+    assert report["matrix"] == [
+        ["1", "0", "0"], ["0", "1", "0"], ["0", "0", "1"],
+    ]
+    # Deliberately independent recorded channel noise makes this regression
+    # observable: arithmetic reconstruction of A-B would change the trace.
+    signals = [[10.0, 20.0], [3.0, 4.0], [7.1, 16.2]]
+    assert apply_transform(report["matrix"], signals) == signals
+
+
 def test_channel_permutation():
     src = m([ch("A-R", "A", "R"), ch("B-R", "B", "R")])
     dst = m([ch("B-R", "B", "R"), ch("A-R", "A", "R")])
