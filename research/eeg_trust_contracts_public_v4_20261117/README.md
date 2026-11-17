@@ -22,6 +22,6 @@ The channel/evaluation utilities import **without PyTorch**, which is a declared
 
 **Evidence scope:** The corresponding locally executed source package passed 68 synthetic CPU tests on 2026-11-17 (includes MNE synthetic bipolar comparisons and subprocess test with PyTorch blocked). This public GitHub source mirror has not separately received a verified GitHub Actions pass. Source was developed in private [PR #86](https://github.com/lindicaphxag-tech/cs/pull/86) and [PR #87](https://github.com/lindicaphxag-tech/cs/pull/87).
 
-Related Braindecode discussions: [#995](https://github.com/braindecode/braindecode/issues/995), [#1227](https://github.com/braindecode/braindecode/issues/1227), and separate upstream Draft [#1574](https://github.com/braindecode/braindecode/pull/1574).
+Related Braindecode discussions: [#995](https://github.com/braindecode/braindecode/issues/995), [#1227](https://github.com/braindecode/braindecode/issues/1227). The former pretrained audit [#1574](https://github.com/braindecode/braindecode/pull/1574) was **closed without merge** after a maintainer preferred existing [#1558](https://github.com/braindecode/braindecode/pull/1558). A separate narrow bipolar-polarity correction [#1577](https://github.com/braindecode/braindecode/pull/1577) is proposed as Draft, not an accepted upstream feature.
 
 **Limitations:** This is not proof of clinical safety, EEG generalization, checkpoint reference parity, upstream adoption or maintainer status. Do not put real participant or hospital identifiers in public manifests.
