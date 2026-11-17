@@ -48,6 +48,28 @@ def test_channel_permutation():
     assert classify(src, dst)["matrix"] == [["0", "1"], ["1", "0"]]
 
 
+def test_redundant_channel_permutation_prefers_observed_lead():
+    source = m([
+        ch("A-R", "A", "R"),
+        ch("B-R", "B", "R"),
+        ch("A-B", "A", "B"),
+    ])
+    destination = m([
+        ch("A-B", "A", "B"),
+        ch("A-R", "A", "R"),
+        ch("B-R", "B", "R"),
+    ])
+    report = classify(source, destination)
+    assert report["status"] == "TRANSFORMABLE"
+    assert report["matrix"] == [
+        ["0", "0", "1"], ["1", "0", "0"], ["0", "1", "0"],
+    ]
+    measured = [[10.0, 20.0], [3.0, 4.0], [7.1, 16.2]]
+    assert apply_transform(report["matrix"], measured) == [
+        measured[2], measured[0], measured[1],
+    ]
+
+
 def test_common_reference_cancellation():
     src = m([ch("Fp1-Ref", "Fp1", "Ref"), ch("F7-Ref", "F7", "Ref")])
     dst = m([ch("Fp1-F7", "Fp1", "F7")])
