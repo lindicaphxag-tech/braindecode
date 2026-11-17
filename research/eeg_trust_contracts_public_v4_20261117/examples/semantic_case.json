@@ -1,0 +1,39 @@
+{
+  "source": {
+    "acquisition_id": "synthetic-001",
+    "timebase_id": "sample0",
+    "sampling_hz": "250",
+    "unit": "uV",
+    "channels": [
+      {
+        "name": "Fp1-Ref",
+        "terms": {
+          "Fp1": "1",
+          "Ref": "-1"
+        }
+      },
+      {
+        "name": "F7-Ref",
+        "terms": {
+          "F7": "1",
+          "Ref": "-1"
+        }
+      }
+    ]
+  },
+  "target": {
+    "acquisition_id": "synthetic-001",
+    "timebase_id": "sample0",
+    "sampling_hz": "250",
+    "unit": "uV",
+    "channels": [
+      {
+        "name": "Fp1-F7",
+        "terms": {
+          "Fp1": "1",
+          "F7": "-1"
+        }
+      }
+    ]
+  }
+}

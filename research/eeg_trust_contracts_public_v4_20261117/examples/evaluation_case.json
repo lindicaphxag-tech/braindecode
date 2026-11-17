@@ -1,0 +1,28 @@
+{
+  "records": [
+    {
+      "dataset": "synthetic",
+      "subject": "S1",
+      "session": "A",
+      "site": "Site1",
+      "recording_id": "r1",
+      "partition": "train"
+    },
+    {
+      "dataset": "synthetic",
+      "subject": "S2",
+      "session": "A",
+      "site": "Site2",
+      "recording_id": "r2",
+      "partition": "test"
+    }
+  ],
+  "pretraining": {
+    "datasets": [
+      "other"
+    ],
+    "complete": false,
+    "source_reference": "synthetic-example"
+  },
+  "require_site_holdout": true
+}

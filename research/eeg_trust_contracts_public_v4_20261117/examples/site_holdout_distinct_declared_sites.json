@@ -1,0 +1,30 @@
+{
+  "records": [
+    {
+      "dataset": "dataset_A",
+      "subject": "subject-01",
+      "session": "session-01",
+      "site": "Hospital-X",
+      "recording_id": "A-raw-001",
+      "partition": "train",
+      "global_site_id": "physical-site-001"
+    },
+    {
+      "dataset": "dataset_B",
+      "subject": "subject-02",
+      "session": "session-01",
+      "site": "Research-Center-Y",
+      "recording_id": "B-raw-002",
+      "partition": "test",
+      "global_site_id": "physical-site-002"
+    }
+  ],
+  "pretraining": {
+    "datasets": [
+      "other"
+    ],
+    "complete": false,
+    "source_reference": "synthetic-only"
+  },
+  "require_site_holdout": true
+}
