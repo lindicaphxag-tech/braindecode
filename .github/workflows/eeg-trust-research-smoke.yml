@@ -1,0 +1,37 @@
+name: EEG trust research smoke
+
+on:
+  push:
+    branches: [research/eeg-trust-public-v4-20261117]
+    paths:
+      - "research/eeg_trust_contracts_public_v4_20261117/**"
+      - ".github/workflows/eeg-trust-research-smoke.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-semantic-evaluation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install lightweight offline research test dependencies
+        run: python -m pip install --disable-pip-version-check pytest numpy mne
+      - name: Channel semantics, MNE parity and split-integrity tests
+        env:
+          PYTHONPATH: research/eeg_trust_contracts_public_v4_20261117/src
+        run: |
+          python -m pytest -q \
+            research/eeg_trust_contracts_public_v4_20261117/tests/test_signal_semantics.py \
+            research/eeg_trust_contracts_public_v4_20261117/tests/test_evaluation_audit.py
+      - name: Pure-Python import path without torch
+        env:
+          PYTHONPATH: research/eeg_trust_contracts_public_v4_20261117/src
+        run: |
+          python -m pytest -q research/eeg_trust_contracts_public_v4_20261117/tests/test_lightweight_imports.py \
+            -k test_semantics_available_with_torch_explicitly_blocked
