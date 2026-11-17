@@ -80,38 +80,39 @@ class Manifest:
             raise ValueError("unknown physical unit")
 
 
-def _rational_solve(source: list[list[Fraction]], target: list[Fraction]) -> list[Fraction] | None:
-    """Find c with sum(c_i * source_i) = target; exact Gauss-Jordan."""
+def _make_source_basis(source: list[list[Fraction]]) -> dict[int, tuple[list[Fraction], list[Fraction]]]:
+    """Reduce source contrast rows once; preserve provenance in source-row space."""
     n_src = len(source)
-    n_features = len(target)
-    if n_src == 0:
-        return None
-    augmented = [[source[col][row] for col in range(n_src)] + [target[row]] for row in range(n_features)]
-    pivots: list[tuple[int, int]] = []
-    row_idx = 0
-    for col_idx in range(n_src):
-        pivot = next((r for r in range(row_idx, n_features) if augmented[r][col_idx]), None)
-        if pivot is None:
-            continue
-        augmented[row_idx], augmented[pivot] = augmented[pivot], augmented[row_idx]
-        div = augmented[row_idx][col_idx]
-        augmented[row_idx] = [v / div for v in augmented[row_idx]]
-        for r in range(n_features):
-            if r != row_idx:
-                factor = augmented[r][col_idx]
-                if factor:
-                    augmented[r] = [v - factor * p for v, p in zip(augmented[r], augmented[row_idx])]
-        pivots.append((row_idx, col_idx))
-        row_idx += 1
-        if row_idx == n_features:
-            break
-    for row in augmented:
-        if all(v == 0 for v in row[:-1]) and row[-1] != 0:
-            return None
+    basis: dict[int, tuple[list[Fraction], list[Fraction]]] = {}
+    for i, row in enumerate(source):
+        residual = list(row)
+        coefficients = [Fraction(int(k == i)) for k in range(n_src)]
+        for pivot in sorted(basis):
+            factor = residual[pivot]
+            if factor:
+                vector, recipe = basis[pivot]
+                residual = [a - factor * b for a, b in zip(residual, vector)]
+                coefficients = [a - factor * b for a, b in zip(coefficients, recipe)]
+        new_pivot = next((j for j, value in enumerate(residual) if value), None)
+        if new_pivot is not None:
+            factor = residual[new_pivot]
+            basis[new_pivot] = ([v / factor for v in residual],
+                                [v / factor for v in coefficients])
+    return basis
+
+
+def _solve_basis(basis: dict[int, tuple[list[Fraction], list[Fraction]]],
+                 target: list[Fraction], n_src: int) -> list[Fraction] | None:
+    """Find target source-row coefficients using the precomputed basis."""
+    residual = list(target)
     coefficients = [Fraction() for _ in range(n_src)]
-    for r, c in pivots:
-        coefficients[c] = augmented[r][-1]
-    return coefficients
+    for pivot in sorted(basis):
+        factor = residual[pivot]
+        if factor:
+            vector, recipe = basis[pivot]
+            residual = [a - factor * b for a, b in zip(residual, vector)]
+            coefficients = [a + factor * b for a, b in zip(coefficients, recipe)]
+    return coefficients if not any(residual) else None
 
 
 def classify(source: Manifest, target: Manifest) -> dict:
@@ -135,8 +136,9 @@ def classify(source: Manifest, target: Manifest) -> dict:
     tgt = [[formula.get(n, Fraction()) for n in nodes] for formula in all_coeffs[len(source.channels):]]
     unit_ratio = _UNIT_V[source.unit] / _UNIT_V[target.unit]
     matrix: list[list[Fraction]] = []
+    basis = _make_source_basis(src)
     for desired in tgt:
-        coefficients = _rational_solve(src, desired)
+        coefficients = _solve_basis(basis, desired, len(src))
         if coefficients is None:
             return {"status": "INCOMPATIBLE", "reason": "target derivation is outside source signal span", "matrix": None}
         matrix.append([coefficient * unit_ratio for coefficient in coefficients])
