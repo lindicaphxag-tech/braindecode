@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "eeg-trust-contract-research"
+version = "0.1.0"
+description = "Offline EEG channel semantics and evaluation-provenance research prototypes"
+requires-python = ">=3.10"
+
+[project.optional-dependencies]
+tests = ["pytest", "numpy", "mne"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
