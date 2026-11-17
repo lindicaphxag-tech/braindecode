@@ -146,6 +146,14 @@ def classify(source: Manifest, target: Manifest) -> dict:
               and all(s.name == t.name and s.coefficients() == t.coefficients()
                       for s, t in zip(source.channels, target.channels))
               and source.unit == target.unit)
+    if direct:
+        # A redundant source basis can express an observed target through other
+        # measured channels. An EXACT identity must preserve each input trace,
+        # rather than silently reconstructing it from those other channels.
+        matrix = [
+            [Fraction(int(i == j)) for j in range(len(src))]
+            for i in range(len(src))
+        ]
     return {"status": "EXACT" if direct else "TRANSFORMABLE",
             "reason": "identity" if direct else "explicit exact rational linear derivation",
             "matrix": [[str(x) for x in row] for row in matrix]}
