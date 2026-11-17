@@ -108,3 +108,36 @@ def test_mne_bipolar_parity_synthetic():
     matrix = classify(m([ch("A-R", "A", "R"), ch("B-R", "B", "R")], unit="V"),
                       m([ch("A-B", "A", "B")], unit="V"))["matrix"]
     np.testing.assert_allclose(apply_transform(matrix, src.tolist())[0], want, rtol=1e-12, atol=1e-18)
+
+
+def test_basis_random_linear_combinations_exact():
+    import random
+    rng = random.Random(20261117)
+    for trial in range(45):
+        rows = []
+        for i in range(6):
+            weights = [rng.randint(-2, 2) for _ in range(5)]
+            if not any(weights):
+                weights[0] = 1
+            rows.append(weights)
+        source = [Channel(f"src_{i}", tuple((f"E{j}", Fraction(v)) for j,v in enumerate(row) if v)
+                  + (("REF", Fraction(-sum(row))),)) for i, row in enumerate(rows)]
+        combo = [rng.randint(-2, 2) for _ in rows]
+        target_coeffs = [sum(c*row[j] for c,row in zip(combo, rows)) for j in range(5)]
+        if not any(target_coeffs):
+            continue
+        target = Channel("target", tuple((f"E{j}", Fraction(v)) for j,v in enumerate(target_coeffs) if v)
+                         + (("REF", Fraction(-sum(target_coeffs))),))
+        report = classify(m(source), m([target]))
+        assert report["status"] == "TRANSFORMABLE", trial
+        reconstructed = {}
+        for row, coefficient in zip(source, report["matrix"][0]):
+            for node, value in row.coefficients().items():
+                reconstructed[node] = reconstructed.get(node, Fraction()) + Fraction(coefficient)*value
+        assert {k:v for k,v in reconstructed.items() if v} == target.coefficients(), trial
+
+
+def test_basis_refuses_unobserved_independent_electrode():
+    source = m([ch("A-R", "A", "R"), ch("B-R", "B", "R")])
+    target = m([ch("C-R", "C", "R")])
+    assert classify(source, target)["status"] == "INCOMPATIBLE"
