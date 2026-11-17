@@ -28,3 +28,4 @@ jobs:
         run: |
           python -m pytest -q research/eeg_semantic_contract_20261117/tests/test_signal_semantics.py
           python -m pytest -q research/eeg_semantic_contract_20261117/tests/test_validation_policy.py
+          python -m pytest -q research/eeg_semantic_contract_20261117/tests/test_model_bridge.py
