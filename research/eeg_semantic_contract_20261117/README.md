@@ -49,3 +49,39 @@ python -m pytest -q tests/test_validation_policy.py
 ```
 
 At development time, 30 local synthetic cases passed. This is a **research-branch test result, not official Braindecode CI**. The package has not loaded any released checkpoint and no upstream API/behavior was changed. A future upstream PR would require a maintainer-agreed scope and explicit native checkpoint evaluation first.
+
+## Read-only bridge to existing checkpoint provenance
+
+`src/trust_contract/model_bridge.py` reads the **already available**
+Braindecode `_pretrained_provenance` dictionary and current
+`named_parameters(remove_duplicate=False)` without installing hooks,
+downloading weights or changing inference. It recognizes a pinned 40-hex
+checkpoint commit; reconciles tied aliases by parameter object identity;
+and excludes all aliases of mixed/adapted parameters from full-load coverage.
+
+The caller must provide the audited feature-path parameter names and an
+independently justified corpus overlap decision. Neither `model.card_data.datasets`
+nor a successful state-dict load is treated as proof that a dataset was
+held out or that all feature-path parameters came from the checkpoint.
+An absent/unpinned provenance record forces `REVIEW`.
+
+```python
+from trust_contract.model_bridge import inspect_model
+
+# model: already loaded by the ordinary Braindecode API
+report = inspect_model(
+    model,
+    workload="frozen_features",
+    signal_status="EXACT",  # independently certified manifest
+    feature_scope={"encoder.weight"},  # independently audited actual graph
+    overlap="UNKNOWN",  # do not infer disjointness from missing card metadata
+    claim_held_out=True,
+)
+print(report.report.as_json())
+```
+
+Local checks after this addition: 44/44 validation and bridge cases passed,
+including an actual PyTorch parameter-alias test when PyTorch was installed.
+The GitHub research workflow also runs the pure-Python bridge tests, with
+the optional torch check skipped when torch is absent. These are **not**
+checkpoint inference tests and are **not** an upstream Braindecode CI result.
