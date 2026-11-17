@@ -1,0 +1,111 @@
+"""No downloads, installed Braindecode, Torch or real checkpoint needed."""
+from types import SimpleNamespace
+
+import pytest
+from trust_contract.model_bridge import inspect_model
+from trust_contract.validation_policy import Decision
+
+SHA = "a" * 40
+
+
+class FakeModel:
+    def __init__(self, *, loaded=True, commit=SHA, tied=False, mixed=()):
+        self.encoder = object()
+        self.head = object() if not tied else self.encoder
+        self._parameters = [("encoder.weight", self.encoder), ("head.weight", self.head)]
+        if loaded is not None:
+            self._pretrained_provenance = {
+                "commit": commit,
+                "loaded": {"encoder.weight"} if loaded else set(),
+                "mixed": set(mixed),
+            }
+        self.card_data = SimpleNamespace(datasets=["ExampleEEG"])
+
+    def named_parameters(self, *, remove_duplicate):
+        assert remove_duplicate is False
+        return iter(self._parameters)
+
+
+def audit(model=None, **kw):
+    kw = {"signal_status": "EXACT", "feature_scope": {"encoder.weight"},
+          "overlap": "NONE", "claim_held_out": True, **kw}
+    return inspect_model(model or FakeModel(), **kw)
+
+
+def test_pinned_loaded_feature_is_accepted_under_supplied_evidence():
+    result = audit()
+    assert result.report.decision == Decision.ACCEPT
+    assert result.checkpoint_pinned
+    assert result.card_datasets == ("ExampleEEG",)
+
+
+def test_tied_parameter_alias_matches_loaded_object():
+    result = audit(FakeModel(tied=True), feature_scope={"head.weight"})
+    assert result.evidence.loaded_parameters == frozenset({"encoder.weight", "head.weight"})
+    assert result.report.decision == Decision.ACCEPT
+
+
+def test_mixed_adapter_excludes_all_tied_aliases():
+    result = audit(FakeModel(tied=True, mixed={"head.weight"}))
+    assert result.report.decision == Decision.REFUSE
+    assert result.report.missing_feature_parameters == ("encoder.weight",)
+
+
+@pytest.mark.parametrize("revision", [None, "main", "abc123", "z" * 40])
+def test_nonimmutable_revision_forces_review(revision):
+    result = audit(FakeModel(commit=revision))
+    assert result.report.decision == Decision.REVIEW
+    assert result.evidence.loaded_parameters is None
+
+
+def test_no_pretrained_provenance_forces_review():
+    assert audit(FakeModel(loaded=None)).report.decision == Decision.REVIEW
+
+
+def test_unloaded_feature_is_refused():
+    result = audit(FakeModel(loaded=False))
+    assert result.report.decision == Decision.REFUSE
+
+
+def test_unknown_feature_scope_requires_review():
+    result = inspect_model(FakeModel(), signal_status="EXACT", overlap="NONE", claim_held_out=True)
+    assert result.report.decision == Decision.REVIEW
+
+
+def test_model_card_datasets_do_not_automatically_claim_disjointness():
+    result = inspect_model(FakeModel(), signal_status="EXACT",
+                           feature_scope={"encoder.weight"}, claim_held_out=True)
+    assert result.card_datasets
+    assert result.report.decision == Decision.REVIEW
+
+
+def test_no_mutation_during_inspection():
+    model = FakeModel()
+    old = (id(model.encoder), id(model.head), dict(model._pretrained_provenance))
+    audit(model)
+    assert old == (id(model.encoder), id(model.head), model._pretrained_provenance)
+
+
+def test_declared_transform_requires_verified_application():
+    result = inspect_model(FakeModel(), signal_status="TRANSFORMABLE",
+                           feature_scope={"encoder.weight"}, overlap="NONE", claim_held_out=True)
+    assert result.report.decision == Decision.REVIEW
+
+
+def test_real_torch_parameter_alias_identity_if_available():
+    torch = pytest.importorskip("torch")
+    model = torch.nn.Module()
+    model.encoder = torch.nn.Linear(2, 2, bias=False)
+    model.head = torch.nn.Module()
+    model.head.register_parameter("weight", model.encoder.weight)
+    model.__dict__["_pretrained_provenance"] = {
+        "commit": SHA,
+        "loaded": {"encoder.weight"},
+        "mixed": set(),
+    }
+    report = inspect_model(
+        model, signal_status="EXACT", feature_scope={"head.weight"},
+        overlap="NONE", claim_held_out=True,
+    )
+    assert report.report.decision == Decision.ACCEPT
+    assert report.evidence.loaded_parameters == frozenset({"encoder.weight", "head.weight"})
