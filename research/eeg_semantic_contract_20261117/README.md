@@ -17,3 +17,7 @@ The synthetic tests cover explicit bipolar-reference cancellation, polarity inve
 A corresponding local source-package archive additionally contains pretrained parameter-origin auditing and evaluation split/corpus integrity tests. Those other modules and unsubmitted research materials remain separate, and are not prerequisites for reviewing this narrowly scoped semantic RFC.
 
 Upstream PRs should be opened only once maintainers agree on interface placement and scope. Contact: Zhibo Zhang (@lindicaphxag-tech).
+
+## Solver update
+
+The public research branch now factors the source derivation basis once and reuses it for all target channels; the synthetic 128-channel CPU preflight microbenchmark had a three-run median of about 0.134 seconds on the tested machine. This is an offline metadata-validation timing, **not** a Braindecode model speedup or a general hardware performance guarantee. Independent real-model checks remain pending.
