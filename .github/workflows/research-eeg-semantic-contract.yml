@@ -1,0 +1,30 @@
+name: Research EEG semantic contract
+
+on:
+  push:
+    branches:
+      - research/eeg-signal-semantic-contract-20261117
+    paths:
+      - "research/eeg_semantic_contract_20261117/**"
+      - ".github/workflows/research-eeg-semantic-contract.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  semantic-contract:
+    name: Synthetic semantics and evidence gates (CPU)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install only research test dependencies
+        run: python -m pip install -e './research/eeg_semantic_contract_20261117[tests]'
+      - name: Run isolated semantic contract tests
+        run: |
+          python -m pytest -q research/eeg_semantic_contract_20261117/tests/test_signal_semantics.py
+          python -m pytest -q research/eeg_semantic_contract_20261117/tests/test_validation_policy.py
