@@ -141,6 +141,26 @@ print(f"CLS token: {out['cls_token']}")
 #    This is useful for **transfer learning**: freeze the backbone and
 #    train only a new head on the extracted features.
 #    See :ref:`finetune-foundation-model` for a complete example.
+#
+# .. warning:: Check checkpoint coverage before freezing features
+#
+#    A successful ``from_pretrained`` call can leave non-head layers at
+#    their local initialization. This is expected in some fine-tuning
+#    recipes but is not equivalent to an entirely pretrained frozen
+#    feature extractor.
+#
+#    Inspect ``print(model)`` after loading. Its existing module-level
+#    checkpoint summary distinguishes loaded from new or adapted parameters.
+#    For example, LaBraM with its default ``use_mean_pooling=True`` can
+#    leave ``fc_norm`` new; ``use_mean_pooling=False`` avoids that layer.
+#    EEGPT's default channel projection may likewise be new;
+#    ``chan_proj_type="none"`` avoids the projection when the input
+#    configuration supports it. The resulting feature paths differ.
+#
+#    Before freezing, review newly initialized or adapted layers along
+#    the path producing the features you plan to use. A new task head can
+#    be intentional; an untrained projection used by frozen features
+#    changes the meaning of the experiment.
 
 ######################################################################
 # Saving and restoring configurations
