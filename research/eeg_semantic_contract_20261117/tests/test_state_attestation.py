@@ -143,7 +143,10 @@ def test_digest_is_deterministic_independent_of_input_key_order():
 def test_digest_changes_for_other_valid_bytes():
     model, ref = linear()
     a = attest(model, ref, required_keys=["weight", "bias"])
-    model2, ref2 = linear()
+    model2 = copy.deepcopy(model)
+    with torch.no_grad():
+        model2.weight.add_(1.0)
+    ref2 = copy.deepcopy(model2.state_dict())
     b = attest(model2, ref2, required_keys=["weight", "bias"])
     assert a.comparison_sha256 != b.comparison_sha256
 
