@@ -30,9 +30,9 @@ jobs:
         run: |
           git fetch origin fix/exact-derivation-empty-and-case-20261119
           git cat-file -e 9c541453e2c13ce0c3680a1582a136ca121b0da7^{commit}
-          git cat-file -e baf8e4c734181727a34a33df126a89a356f0cc81^{commit}
+          git cat-file -e 876f4ec51440b8f7d9b8858cdeef38091198f13c^{commit}
           test "$(git show 9c541453e2c13ce0c3680a1582a136ca121b0da7:braindecode/functional/channels.py | git hash-object --stdin)" = "896f80ac2934851a3ef7ef731c83ac43be0aa845"
-          test "$(git show baf8e4c734181727a34a33df126a89a356f0cc81:braindecode/functional/channels.py | git hash-object --stdin)" = "3b05938f993e7fd6f1e6651614018129dbb8defc"
+          test "$(git show 876f4ec51440b8f7d9b8858cdeef38091198f13c:braindecode/functional/channels.py | git hash-object --stdin)" = "d056722a3a8381a1cf7f9dec5dafb0fdfcf01db"
       - name: Install standard CPU-only test dependencies
         run: |
           python -m pip install --upgrade pip
