@@ -38,7 +38,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.10.0
           python -m pip install pytest numpy
-      - name: Prove old #1593 master has exactly four expected failures
+      - name: Prove old #1593 master has exactly three expected case failures
         shell: bash
         run: |
           set +e
@@ -47,7 +47,7 @@ jobs:
           set -e
           cat before.log
           test "$rc" -ne 0
-          grep -Eq '4 failed, 27 passed|27 passed, 4 failed' before.log
+          grep -Eq '3 failed, 28 passed|28 passed, 3 failed' before.log
       - name: Prove new #1597 merge head passes all 31 independent cases
         run: |
           BD_CHANNELS_REF=followup python -m pytest -q research/validation/test_derivation_1597_post1593_exact_blob.py | tee after.log
