@@ -123,6 +123,10 @@ def assess(e: Evidence) -> Report:
     else:
         if e.loaded_parameters is None:
             mark(Decision.DISCLOSE, "checkpoint_loading_unverified_for_finetuning")
+        elif not e.loaded_parameters:
+            # A model with zero loaded checkpoint tensors is not evidence of
+            # transfer learning, even if model-card metadata looks complete.
+            mark(Decision.REFUSE, "zero_pretrained_parameters_loaded")
 
     if e.claim_held_out:
         if e.overlap == "OVERLAP":
