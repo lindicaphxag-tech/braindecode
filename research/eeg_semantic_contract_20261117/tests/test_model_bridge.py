@@ -139,3 +139,64 @@ def test_hash_without_checkpoint_repository_identity_requires_review():
     report = audit(model)
     assert not report.checkpoint_pinned
     assert report.report.decision == Decision.REVIEW
+
+def test_batchnorm_unloaded_running_statistics_fail_frozen_feature_gate():
+    """Checkpointed weights do not imply checkpointed inference statistics."""
+    torch = pytest.importorskip("torch")
+    model = torch.nn.Module()
+    model.encoder = torch.nn.BatchNorm1d(3)
+    model.__dict__["_pretrained_provenance"] = {
+        "repo_id": "example/eeg-model",
+        "commit": SHA,
+        "loaded": {"encoder.weight", "encoder.bias"},
+        "mixed": set(),
+    }
+    report = inspect_model(
+        model, signal_status="EXACT", overlap="NONE", claim_held_out=True,
+        feature_scope={
+            "encoder.weight", "encoder.bias",
+            "encoder.running_mean", "encoder.running_var",
+        },
+    )
+    assert report.report.decision == Decision.REFUSE
+    assert report.report.missing_feature_parameters == (
+        "encoder.running_mean", "encoder.running_var"
+    )
+
+
+def test_batchnorm_checkpointed_running_statistics_can_pass_declared_scope():
+    torch = pytest.importorskip("torch")
+    model = torch.nn.Module()
+    model.encoder = torch.nn.BatchNorm1d(3)
+    model.__dict__["_pretrained_provenance"] = {
+        "repo_id": "example/eeg-model",
+        "commit": SHA,
+        "loaded": set(model.state_dict()),
+        "mixed": set(),
+    }
+    report = inspect_model(
+        model, signal_status="EXACT", overlap="NONE", claim_held_out=True,
+        feature_scope={
+            "encoder.weight", "encoder.bias",
+            "encoder.running_mean", "encoder.running_var",
+        },
+    )
+    assert report.report.decision == Decision.ACCEPT
+
+
+def test_nonpersistent_buffer_cannot_be_attributed_to_checkpoint():
+    torch = pytest.importorskip("torch")
+    model = torch.nn.Module()
+    model.register_buffer("nonpersistent_scale", torch.ones(3), persistent=False)
+    model.__dict__["_pretrained_provenance"] = {
+        "repo_id": "example/eeg-model",
+        "commit": SHA,
+        "loaded": {"nonpersistent_scale"},
+        "mixed": set(),
+    }
+    report = inspect_model(
+        model, signal_status="EXACT", overlap="NONE", claim_held_out=True,
+        feature_scope={"nonpersistent_scale"},
+    )
+    assert report.report.decision == Decision.REFUSE
+    assert report.report.missing_feature_parameters == ("nonpersistent_scale",)
