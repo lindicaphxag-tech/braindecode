@@ -85,3 +85,26 @@ including an actual PyTorch parameter-alias test when PyTorch was installed.
 The GitHub research workflow also runs the pure-Python bridge tests, with
 the optional torch check skipped when torch is absent. These are **not**
 checkpoint inference tests and are **not** an upstream Braindecode CI result.
+
+## 2026-11-18 correctness hardening (red/green)
+
+A focused audit found three fail-open/malformed-input cases in the independent
+research evidence gate:
+
+1. Fine-tuning with **zero actually loaded checkpoint parameters** could
+   previously return ACCEPT. This now returns REFUSE.
+2. A `torch.nn.UninitializedParameter` whose name was listed in checkpoint
+   metadata could be counted as loaded even though it was never materialized.
+   It is now excluded from the loaded set; a frozen feature path needing it
+   returns REFUSE.
+3. Passing `feature_scope="encoder.weight"` previously expanded the string
+   into single-character names. The bridge now raises a specific TypeError.
+
+The three new tests were run **before** the fixes and exposed three failures;
+after the fixes, the isolated policy/bridge suite passed **47/47 locally**
+(Python 3.13, pytest, torch available). The fork branch now includes these
+three regression tests and fixes. GitHub Actions confirmation must be reported
+separately; the fork's earlier research-branch runs list was empty.
+
+These changes do not modify upstream Braindecode APIs or the currently
+reviewed #1577 pull request.
