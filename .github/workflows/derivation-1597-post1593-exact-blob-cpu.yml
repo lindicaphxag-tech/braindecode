@@ -1,0 +1,63 @@
+name: Public CPU exact-blob proof for Braindecode 1597 after 1593
+
+on:
+  push:
+    branches:
+      - evidence/1597-exact-head-redgreen-20261119
+    paths:
+      - ".github/workflows/derivation-1597-post1593-exact-blob-cpu.yml"
+      - "research/validation/test_derivation_1597_post1593_exact_blob.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  exact-source-cpu:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify both exact source commits are reachable
+        run: |
+          git fetch origin fix/exact-derivation-empty-and-case-20261119
+          git cat-file -e 9c541453e2c13ce0c3680a1582a136ca121b0da7^{commit}
+          git cat-file -e baf8e4c734181727a34a33df126a89a356f0cc81^{commit}
+          test "$(git show 9c541453e2c13ce0c3680a1582a136ca121b0da7:braindecode/functional/channels.py | git hash-object --stdin)" = "896f80ac2934851a3ef7ef731c83ac43be0aa845"
+          test "$(git show baf8e4c734181727a34a33df126a89a356f0cc81:braindecode/functional/channels.py | git hash-object --stdin)" = "3b05938f993e7fd6f1e6651614018129dbb8defc"
+      - name: Install standard CPU-only test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.10.0
+          python -m pip install pytest numpy
+      - name: Prove old #1593 master has exactly four expected failures
+        shell: bash
+        run: |
+          set +e
+          BD_CHANNELS_REF=merged python -m pytest -q research/validation/test_derivation_1597_post1593_exact_blob.py > before.log 2>&1
+          rc=$?
+          set -e
+          cat before.log
+          test "$rc" -ne 0
+          grep -Eq '4 failed, 27 passed|27 passed, 4 failed' before.log
+      - name: Prove new #1597 merge head passes all 31 independent cases
+        run: |
+          BD_CHANNELS_REF=followup python -m pytest -q research/validation/test_derivation_1597_post1593_exact_blob.py | tee after.log
+          grep -q "31 passed" after.log
+      - name: Archive source-specific evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: braindecode-1597-post1593-exact-blob-cpu
+          path: |
+            before.log
+            after.log
+          if-no-files-found: warn
