@@ -47,41 +47,51 @@ def inspect_model(
     checkpoint ``commit`` is considered pinned here, and only current
     parameter objects are included in a loaded-feature assurance.
     """
+    # Inference state includes BatchNorm-like running buffers, not just
+    # trainable parameters. A fully loaded parameter set alone is not proof
+    # of a fully restored frozen feature path.
     pairs = list(model.named_parameters(remove_duplicate=False))
-    params = {name: param for name, param in pairs}
-    names = frozenset(params)
+    if callable(getattr(model, "named_buffers", None)):
+        pairs.extend(model.named_buffers(remove_duplicate=False))
+    tensors = dict(pairs)
+    names = frozenset(tensors)
     if isinstance(feature_scope, (str, bytes)):
         raise TypeError("feature_scope must contain full parameter names, not a string")
     scope = frozenset(feature_scope) if feature_scope is not None else None
 
     prov = model.__dict__.get("_pretrained_provenance")
     prov = prov if isinstance(prov, dict) else {}
-    # A commit hash without a source repository does not identify a checkpoint.
     pinned = (
         isinstance(prov.get("repo_id"), str)
         and bool(prov["repo_id"].strip())
         and isinstance(prov.get("commit"), str)
         and bool(_COMMIT.fullmatch(prov["commit"]))
     )
+    # state_dict() enumerates checkpoint-persistent state. A nonpersistent
+    # buffer may affect outputs but cannot be attributed to saved weights.
+    persistent = (
+        set(model.state_dict())
+        if callable(getattr(model, "state_dict", None))
+        else set(names)
+    )
     loaded: frozenset[str] | None = None
     if pinned and isinstance(prov.get("loaded"), (set, frozenset, list, tuple)):
-        loaded_names = set(prov["loaded"]) & names
-        mixed_names = set(prov.get("mixed") or ()) & names
-        loaded_ids = {id(params[name]) for name in loaded_names}
-        mixed_ids = {id(params[name]) for name in mixed_names}
-        # A tied parameter has one object, even if the checkpoint records
-        # just one alias. Mixed/adapted or unmaterialized lazy tensors are
-        # never certified as fully loaded pretrained parameters.
+        loaded_ids = {
+            id(tensors[name]) for name in set(prov["loaded"]) & names & persistent
+        }
+        mixed_ids = {
+            id(tensors[name]) for name in set(prov.get("mixed") or ()) & names
+        }
         try:
             from torch.nn.parameter import is_lazy
         except ImportError:
-            # Torch is optional for the isolated synthetic research tests.
             is_lazy = lambda _: False
         loaded = frozenset(
-            name for name, param in pairs
-            if id(param) in loaded_ids
-            and id(param) not in mixed_ids
-            and not is_lazy(param)
+            name for name, tensor in pairs
+            if name in persistent
+            and id(tensor) in loaded_ids
+            and id(tensor) not in mixed_ids
+            and not is_lazy(tensor)
         )
 
     card = getattr(model, "card_data", None)
