@@ -147,3 +147,61 @@ buffer actually read** by that path. The helper cannot discover omitted
 dependencies from the execution graph. Current fork branch CI listing
 still contained **zero Actions runs** when audited; code and committed
 workflow should not be described as independently CI-confirmed.
+
+
+## 2026-11-18 — optional tensor-byte checkpoint attestation
+
+The opt-in research gate now has a second, independent evidence tier:
+
+1. `state_attestation.py` compares **declared persistent model-state
+   tensors** against a caller-supplied, independently snapshotted checkpoint
+   state. It compares name, shape, dtype and packed logical tensor bytes; it
+   does **not** use tolerant numerical equality. It includes BatchNorm buffers,
+   exact sign of floating zero, NaN payload bits and tied parameter aliases.
+2. The comparator marks missing, different, sparse/meta/lazy or otherwise
+   unverifiable states explicitly. It rejects `model.state_dict()` passed
+   as its own reference because the live model and the nominal reference may
+   share storage. Empty or malformed required scopes cannot self-certify.
+3. `model_bridge.inspect_model(..., checkpoint_reference_state=...)`
+   optionally consumes the comparison, intersects verified tensors with
+   the existing pinned-provenance `loaded` set and applies the established
+   `ACCEPT/DISCLOSE/REVIEW/REFUSE` policy. A mismatch on a declared frozen
+   feature path is refused; incomplete fine-tuning transfer does not silently
+   receive ACCEPT.
+
+Usage with an **independently obtained** raw checkpoint state:
+
+```python
+from trust_contract.state_attestation import attest_checkpoint_state
+from trust_contract.model_bridge import inspect_model
+
+# model has already been loaded by the ordinary framework code.
+# `reference_state` must come from an independently retained checkpoint
+# artifact, not from the current model.state_dict() or a clone of it.
+result = attest_checkpoint_state(
+    model, reference_state,
+    required_keys=tuple(model.state_dict()),  # all persisted inference state
+)
+assert result.verified, result
+
+decision = inspect_model(
+    model, workload="frozen_features", signal_status="EXACT",
+    feature_scope={"encoder.weight", "encoder.running_mean"},  # example only
+    overlap="UNKNOWN", claim_held_out=True,
+    checkpoint_reference_state=reference_state,
+)
+print(decision.report.as_json())
+```
+
+**Boundary:** this proves equality **relative to the supplied reference**
+only. It does not authenticate the original checkpoint download, guarantee
+the reference is the intended pretrained artifact, infer the executed feature
+graph, certify electrode metadata, or establish dataset disjointness.
+An independently created clone of the current model can still match: callers
+must verify reference provenance outside this helper.
+
+Local regression receipt: 76/76 tests passed for the evidence policy,
+model bridge, byte-level comparator and four integration regressions; Python
+3.11 syntax parsing passed. The GitHub Actions research branch currently
+has **no completed workflow-run receipt**; do not call these official CI.
+Production code and the official Braindecode #1577 PR are unchanged.
