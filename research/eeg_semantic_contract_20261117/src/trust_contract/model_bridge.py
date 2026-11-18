@@ -7,10 +7,11 @@ dataset disjointness. It never downloads weights or mutates the model.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Iterable
+from typing import Any, Iterable, Mapping
 import re
 
-from .validation_policy import Evidence, Report, assess
+from .validation_policy import Decision, Evidence, Report, assess
+from .state_attestation import StateAttestation, attest_checkpoint_state
 
 _COMMIT = re.compile(r"^[0-9a-f]{40}$", re.IGNORECASE)
 
@@ -22,6 +23,7 @@ class ModelAudit:
     checkpoint_pinned: bool
     card_datasets: tuple[str, ...]
     observed_parameter_names: tuple[str, ...]
+    tensor_attestation: StateAttestation | None = None
 
 
 def inspect_model(
@@ -33,6 +35,7 @@ def inspect_model(
     channel_transform_applied: bool = False,
     overlap: str = "UNKNOWN",
     claim_held_out: bool = False,
+    checkpoint_reference_state: Mapping[str, Any] | None = None,
 ) -> ModelAudit:
     """Inspect current parameter identities and recorded checkpoint lineage.
 
@@ -94,6 +97,17 @@ def inspect_model(
             and not is_lazy(tensor)
         )
 
+    attestation = None
+    if checkpoint_reference_state is not None:
+        # Reference must be an independent snapshot, not a live state_dict()
+        # view; equal bytes alone do not establish the artifact's origin.
+        required = scope if scope is not None else (loaded if loaded else names)
+        if required:
+            attestation = attest_checkpoint_state(
+                model, checkpoint_reference_state, required_keys=required)
+            if loaded is not None:
+                loaded = frozenset(loaded & frozenset(attestation.matched))
+
     card = getattr(model, "card_data", None)
     datasets = getattr(card, "datasets", None) if card is not None else None
     if isinstance(datasets, str):
@@ -110,10 +124,22 @@ def inspect_model(
         overlap=overlap,
         claim_held_out=claim_held_out,
     )
+    report = assess(e)
+    if attestation is not None and not attestation.verified:
+        # Even a partial fine-tune transfer cannot silently certify a
+        # mismatching checkpoint reference. Preserve stronger REFUSE status.
+        if report.decision in (Decision.ACCEPT, Decision.DISCLOSE):
+            report = Report(
+                Decision.REVIEW,
+                (*report.reasons, "checkpoint_reference_not_fully_verified"),
+                report.missing_feature_parameters,
+                report.guarantees,
+            )
     return ModelAudit(
         evidence=e,
-        report=assess(e),
+        report=report,
         checkpoint_pinned=pinned,
         card_datasets=card_datasets,
         observed_parameter_names=tuple(sorted(names)),
+        tensor_attestation=attestation,
     )
