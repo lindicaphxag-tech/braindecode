@@ -32,3 +32,4 @@ jobs:
           python -m pytest -q research/eeg_semantic_contract_20261117/tests/test_validation_policy.py
           python -m pytest -q research/eeg_semantic_contract_20261117/tests/test_model_bridge.py
           python -m pytest -q research/eeg_semantic_contract_20261117/tests/test_state_attestation.py
+          python -m pytest -q research/eeg_semantic_contract_20261117/tests/test_attested_bridge.py
