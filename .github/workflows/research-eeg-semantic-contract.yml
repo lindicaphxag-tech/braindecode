@@ -24,8 +24,11 @@ jobs:
           python-version: "3.11"
       - name: Install only research test dependencies
         run: python -m pip install -e './research/eeg_semantic_contract_20261117[tests]'
+      - name: Install CPU PyTorch for real state-dict attestation checks
+        run: python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
       - name: Run isolated semantic contract tests
         run: |
           python -m pytest -q research/eeg_semantic_contract_20261117/tests/test_signal_semantics.py
           python -m pytest -q research/eeg_semantic_contract_20261117/tests/test_validation_policy.py
           python -m pytest -q research/eeg_semantic_contract_20261117/tests/test_model_bridge.py
+          python -m pytest -q research/eeg_semantic_contract_20261117/tests/test_state_attestation.py
