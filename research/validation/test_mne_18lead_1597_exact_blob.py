@@ -31,7 +31,7 @@ if choice not in REFS:
     raise ValueError("BD_CHANNELS_REF must be merged or followup")
 commit, expected_blob = REFS[choice]
 raw = subprocess.check_output(["git", "show", f"{commit}:braindecode/functional/channels.py"])
-actual_blob = hashlib.sha1(f"blob {len(raw)}\\0".encode() + raw).hexdigest()
+actual_blob = hashlib.sha1(f"blob {len(raw)}\0".encode() + raw).hexdigest()
 assert actual_blob == expected_blob, f"unexpected original Git blob: {actual_blob}"
 module = types.ModuleType("bd1597_mne_exact_channels")
 exec(compile(raw, f"{commit}:braindecode/functional/channels.py", "exec"), module.__dict__)
