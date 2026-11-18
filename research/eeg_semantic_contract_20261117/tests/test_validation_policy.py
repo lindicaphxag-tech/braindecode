@@ -115,3 +115,17 @@ def test_finetuning_zero_loaded_weights_cannot_be_accepted():
     ))
     assert report.decision == Decision.REFUSE
     assert "zero_pretrained_parameters_loaded" in report.reasons
+
+def test_finetune_loaded_names_without_parameter_inventory_requires_review():
+    """An uncorroborated claimed loaded set must not pass a transfer claim."""
+    record = make(
+        workload="fine_tune",
+        feature_scope=None,
+        checkpoint_parameters=None,
+        loaded_parameters=frozenset({"encoder.weight"}),
+        overlap="NONE",
+        claim_held_out=True,
+    )
+    report = assess(record)
+    assert report.decision == Decision.REVIEW
+    assert "checkpoint_parameter_inventory_missing" in report.reasons
