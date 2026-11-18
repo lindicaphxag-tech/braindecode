@@ -104,3 +104,14 @@ def test_determinism_and_sorted_missing_parameters():
     b = assess(make(feature_scope=frozenset({"backbone.weight"}) | missing))
     assert a.as_json() == b.as_json()
     assert a.missing_feature_parameters == ("adapter.weight", "head.weight")
+
+
+def test_finetuning_zero_loaded_weights_cannot_be_accepted():
+    # Known empty checkpoint coverage must not be mistaken for transfer.
+    report = assess(make(
+        workload="fine_tune",
+        feature_scope=None,
+        loaded_parameters=frozenset(),
+    ))
+    assert report.decision == Decision.REFUSE
+    assert "zero_pretrained_parameters_loaded" in report.reasons
