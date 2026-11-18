@@ -50,6 +50,8 @@ def inspect_model(
     pairs = list(model.named_parameters(remove_duplicate=False))
     params = {name: param for name, param in pairs}
     names = frozenset(params)
+    if isinstance(feature_scope, (str, bytes)):
+        raise TypeError("feature_scope must contain full parameter names, not a string")
     scope = frozenset(feature_scope) if feature_scope is not None else None
 
     prov = model.__dict__.get("_pretrained_provenance")
@@ -62,10 +64,18 @@ def inspect_model(
         loaded_ids = {id(params[name]) for name in loaded_names}
         mixed_ids = {id(params[name]) for name in mixed_names}
         # A tied parameter has one object, even if the checkpoint records
-        # just one of its aliases. A mixed/adapted alias is not fully loaded.
+        # just one alias. Mixed/adapted or unmaterialized lazy tensors are
+        # never certified as fully loaded pretrained parameters.
+        try:
+            from torch.nn.parameter import is_lazy
+        except ImportError:
+            # Torch is optional for the isolated synthetic research tests.
+            is_lazy = lambda _: False
         loaded = frozenset(
             name for name, param in pairs
-            if id(param) in loaded_ids and id(param) not in mixed_ids
+            if id(param) in loaded_ids
+            and id(param) not in mixed_ids
+            and not is_lazy(param)
         )
 
     card = getattr(model, "card_data", None)
