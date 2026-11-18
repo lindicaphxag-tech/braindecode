@@ -74,3 +74,13 @@ This section supersedes earlier in-progress CI wording above. The exact head is 
 The tested source-equivalent candidate passed **31/31** numeric/interface regressions, **12/12** MNE integration checks, and **14/14** status-gating unit tests locally. These three local scopes are not interchangeable with official full-suite success. The upstream #1593 baseline **already passes** the empty-target cases; its three observed failures in the 31-case suite concern the explicit electrode-name case contract. The only justified merge gate is an authorized rerun of the failed job or actionable diagnostics on the exact unchanged head. Avoid duplicate review comments and unnecessary production commits solely to retrigger the workflow.
 
 [PR body](https://github.com/braindecode/braindecode/pull/1597) now reflects this exact same status.
+
+## Exact-head evidence refresh: 876f4ec5 (19 Nov 2026)
+
+**Current PR code**: `876f4ec51440b8f7d9b8858cdeef38091198f13c`. The complete `braindecode/functional/channels.py` Git blob is `d056722a3a8381a1cf7f9dec5dafb0fdfcf01db` (independently returned by the GitHub file endpoint for that precise ref). The public [31-case source loader](./test_derivation_1597_post1593_exact_blob.py) and [CPU workflow](../../.github/workflows/derivation-1597-post1593-exact-blob-cpu.yml) were updated to fetch that exact commit and verify its full raw Git blob ID. The old #1593 baseline blob `896f80ac2934851a3ef7ef731c83ac43be0aa845` remains fixed for comparison.
+
+The production patch is **now only the explicit electrode-column normalization**; the empty-target early return was removed as redundant on current master. The PR has three changed files (+35/-1), with regression tests still asserting both empty-target return shapes and adding the named-reference case.
+
+**Official current-head CI**: [new tests workflow #44380976465](https://github.com/braindecode/braindecode/actions/runs/44380976465) was **in_progress** at this verification. Acceptance, docs, pre-commit and whats-new checks completed successfully in the observed runs. Do not apply the historical `baf8e4c7` CI failure to the new head, or claim that the updated public full-Git-blob workflow has executed unless a successful run is independently observed.
+
+**Evidence boundary**: 28/31 versus 31/31, MNE 10/12 versus 12/12, and the 14/14 truth-gate results predate this exact HEAD. The tests are now correctly pinned for a new execution; updating expected hashes alone does **not** constitute a fresh passing run.
