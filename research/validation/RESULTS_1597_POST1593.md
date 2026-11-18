@@ -84,3 +84,11 @@ The production patch is **now only the explicit electrode-column normalization**
 **Official current-head CI**: [new tests workflow #44380976465](https://github.com/braindecode/braindecode/actions/runs/44380976465) was **in_progress** at this verification. Acceptance, docs, pre-commit and whats-new checks completed successfully in the observed runs. Do not apply the historical `baf8e4c7` CI failure to the new head, or claim that the updated public full-Git-blob workflow has executed unless a successful run is independently observed.
 
 **Evidence boundary**: 28/31 versus 31/31, MNE 10/12 versus 12/12, and the 14/14 truth-gate results predate this exact HEAD. The tests are now correctly pinned for a new execution; updating expected hashes alone does **not** constitute a fresh passing run.
+
+## Exact-head official success verification (2026-11-19)
+
+**Braindecode #1597**, HEAD `876f4ec51440b8f7d9b8858cdeef38091198f13c`: the official [full tests workflow #44380976465](https://github.com/braindecode/braindecode/actions/runs/44380976465) has **completed/success**. GitHub's exact-commit Check Runs endpoint returned **7/7 completed/success**, namely `test (ubuntu-latest, 3.12)`, `acceptance (ubuntu-latest, 3.12)`, `codecov/project`, `Codacy Static Code Analysis`, `build_docs`, `pre-commit`, and `check-whats-news`. Both jobs in the tests workflow succeeded. This is genuine official upstream current-head CI, not inherited evidence from old SHAs. The old `baf8e4c7` full-suite failure is superseded for current merge-readiness.
+
+**State at verification**: PR **Open**, **mergeable=true**, **not yet merged**; no approval is implied solely from successful checks. Current diff remains three files +35/-1, with one production change for explicit-electrode case normalization, plus regression tests and release notes. The publicly pinned source/blob CPU script is updated, but its fork-hosted Actions workflow still has **zero observed runs**. Historical local 31/31 and MNE 12/12 remain separate evidence and were not reexecuted on this HEAD.
+
+**Next gate**: maintainer review/merge. Avoid duplicate reviewer pings, branch churn, or redundant CI runs without reviewer request.
