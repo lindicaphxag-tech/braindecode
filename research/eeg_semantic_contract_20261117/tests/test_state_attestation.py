@@ -162,3 +162,53 @@ def test_clone_reference_prevents_tautological_self_comparison():
     model = torch.nn.Linear(2, 2)
     ref = {name: value.clone() for name, value in model.state_dict().items()}
     assert attest(model, ref, required_keys=ref.keys()).verified
+
+
+def test_full_batchnorm_snapshot_including_scalar_counter_is_attestable():
+    model = torch.nn.BatchNorm1d(4)
+    reference = copy.deepcopy(model.state_dict())
+    result = attest(model, reference, required_keys=tuple(reference))
+    assert result.verified and set(result.matched) == set(reference)
+    assert reference["num_batches_tracked"].ndim == 0
+
+
+def test_batchnorm_scalar_counter_mutation_detected_byte_exactly():
+    model = torch.nn.BatchNorm1d(4)
+    reference = copy.deepcopy(model.state_dict())
+    with torch.no_grad():
+        model.num_batches_tracked.add_(1)
+    result = attest(model, reference, required_keys=tuple(reference))
+    assert not result.verified
+    assert result.different == ("num_batches_tracked",)
+
+
+def test_zero_dimensional_float_signed_zero_distinguished():
+    model = torch.nn.Module()
+    model.register_buffer("scale", torch.tensor(0., dtype=torch.float32))
+    result = attest(model, {"scale": torch.tensor(-0., dtype=torch.float32)},
+                    required_keys=("scale",))
+    assert result.different == ("scale",)
+
+
+def test_non_contiguous_logical_tensor_values_remain_byte_comparable():
+    model = torch.nn.Module()
+    values = torch.arange(12, dtype=torch.float32).reshape(3, 4).T
+    assert not values.is_contiguous()
+    model.register_buffer("transposed", values)
+    reference = {"transposed": values.clone().contiguous()}
+    result = attest(model, reference, required_keys=("transposed",))
+    assert result.verified
+
+
+def test_zero_dimensional_integer_buffer_exact_snapshot():
+    model = torch.nn.Module()
+    model.register_buffer("step", torch.tensor(0, dtype=torch.int64))
+    result = attest(model, copy.deepcopy(model.state_dict()), required_keys=("step",))
+    assert result.verified
+
+
+def test_zero_dimensional_bool_buffer_exact_snapshot():
+    model = torch.nn.Module()
+    model.register_buffer("flag", torch.tensor(True, dtype=torch.bool))
+    result = attest(model, copy.deepcopy(model.state_dict()), required_keys=("flag",))
+    assert result.verified
