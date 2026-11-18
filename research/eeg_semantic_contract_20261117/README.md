@@ -108,3 +108,14 @@ separately; the fork's earlier research-branch runs list was empty.
 
 These changes do not modify upstream Braindecode APIs or the currently
 reviewed #1577 pull request.
+
+### Additional source-identity safeguard
+
+A 40-character SHA alone does not identify which repository supplied the
+checkpoint. The standalone bridge now requires both an explicitly recorded
+nonempty `repo_id` and a 40-hex `commit` before treating provenance as
+pinned. The additional test first demonstrated the false acceptance and then
+passed with the change. The local policy/bridge suite is now **48/48 green**.
+
+This validates the structure of the *reported* source identity; it is not a
+cryptographic re-download or independent audit of the checkpoint bytes.
