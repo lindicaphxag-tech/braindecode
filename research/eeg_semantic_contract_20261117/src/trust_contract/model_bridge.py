@@ -56,7 +56,13 @@ def inspect_model(
 
     prov = model.__dict__.get("_pretrained_provenance")
     prov = prov if isinstance(prov, dict) else {}
-    pinned = isinstance(prov.get("commit"), str) and bool(_COMMIT.fullmatch(prov["commit"]))
+    # A commit hash without a source repository does not identify a checkpoint.
+    pinned = (
+        isinstance(prov.get("repo_id"), str)
+        and bool(prov["repo_id"].strip())
+        and isinstance(prov.get("commit"), str)
+        and bool(_COMMIT.fullmatch(prov["commit"]))
+    )
     loaded: frozenset[str] | None = None
     if pinned and isinstance(prov.get("loaded"), (set, frozenset, list, tuple)):
         loaded_names = set(prov["loaded"]) & names
