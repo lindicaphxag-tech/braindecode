@@ -119,3 +119,31 @@ passed with the change. The local policy/bridge suite is now **48/48 green**.
 
 This validates the structure of the *reported* source identity; it is not a
 cryptographic re-download or independent audit of the checkpoint bytes.
+
+
+## 2026-11-18: persistent-state and fine-tuning-inventory verification
+
+The isolated research gate now inspects checkpoint-persistent **buffers** as
+well as model parameters. A frozen feature path may depend on BatchNorm
+`running_mean` and `running_var`; their absence from a pinned checkpoint
+must not be hidden by fully loaded trainable weights. A nonpersistent buffer
+can participate in inference but cannot be attributed to checkpoint state.
+Three real PyTorch regression tests cover loaded, unloaded, and nonpersistent
+buffers.
+
+A fourth regression prevents a fine-tuning transfer claim from passing
+`ACCEPT` merely because the user supplies a nonempty list of alleged loaded
+weights without providing the actual model-state inventory. Such claims
+now require `REVIEW`.
+
+The new regression cases were **run red first** and then passed in the
+isolated local test environment. The latest policy/bridge suite recorded
+**52/52 passes** with PyTorch installed. This is not proof that released EEG
+weights have been loaded, nor does it supersede independent validation of
+feature-path reachability and pretraining-corpus disjointness.
+
+The feature-scope declaration must list **every parameter and inference
+buffer actually read** by that path. The helper cannot discover omitted
+dependencies from the execution graph. Current fork branch CI listing
+still contained **zero Actions runs** when audited; code and committed
+workflow should not be described as independently CI-confirmed.
