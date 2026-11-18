@@ -92,3 +92,9 @@ The production patch is **now only the explicit electrode-column normalization**
 **State at verification**: PR **Open**, **mergeable=true**, **not yet merged**; no approval is implied solely from successful checks. Current diff remains three files +35/-1, with one production change for explicit-electrode case normalization, plus regression tests and release notes. The publicly pinned source/blob CPU script is updated, but its fork-hosted Actions workflow still has **zero observed runs**. Historical local 31/31 and MNE 12/12 remain separate evidence and were not reexecuted on this HEAD.
 
 **Next gate**: maintainer review/merge. Avoid duplicate reviewer pings, branch churn, or redundant CI runs without reviewer request.
+
+## Formal upstream merge — final status (2026-11-19)
+
+The follow-up **Braindecode #1597 is formally merged**: https://github.com/braindecode/braindecode/pull/1597. GitHub reports `merged_at=2026-11-18T20:26:44Z` (2026-11-19 04:26:44 Singapore/Beijing), merge commit **`41fc193cece2b20af9d89912dfdf0c036eac8f56`**, accepted PR head `876f4ec51440b8f7d9b8858cdeef38091198f13c`. The seven official exact-head checks, including full unit tests, completed **success** before merge. Earlier `Open`, `pending`, `failed`, or `in_progress` statements in this historical log describe earlier checkpoints and are superseded as of this final status.
+
+The public fork's exact-blob CPU workflow still had no run in the last separate fork query; its existence is a reproducible artifact, not claimed as an additional cloud success. Stable release adoption and final release metadata remain independently unverified; the latest published Braindecode GitHub release was v2.0.0 and v2.1.0 release-preparation PR #1571 remained Open/Draft.
