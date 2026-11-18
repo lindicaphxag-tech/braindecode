@@ -205,3 +205,22 @@ model bridge, byte-level comparator and four integration regressions; Python
 3.11 syntax parsing passed. The GitHub Actions research branch currently
 has **no completed workflow-run receipt**; do not call these official CI.
 Production code and the official Braindecode #1577 PR are unchanged.
+
+
+### Scalar tensor byte-attestation regression (2026-11-18)
+
+Audit found a genuine false negative in the byte comparator: `tensor.view(torch.uint8)`
+does not support a **zero-dimensional** multi-byte tensor. Therefore a
+correct `BatchNorm.num_batches_tracked` 0-D integer counter was reported
+as `unverifiable` rather than an equal checkpoint state. Similarly a 0-D
+floating-point `+0` versus `-0` change could not be classified as a
+bytewise difference.
+
+The fix flattens the detached CPU copy **before** `view(torch.uint8)`,
+preserving the dtype's actual bytes. Both failures were reproduced as
+RED tests before the fix; they now pass. Six new regressions cover complete
+BatchNorm state (including `num_batches_tracked`), modified scalar
+counter, scalar signed zero, scalar integer, scalar bool, and a
+noncontiguous tensor. The local research policy/bridge/attestation suites
+passed **82/82** after this patch, including the previous 76 tests.
+This does not represent upstream CI or a real pretrained checkpoint run.
