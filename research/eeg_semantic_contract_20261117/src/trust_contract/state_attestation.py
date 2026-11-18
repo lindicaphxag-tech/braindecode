@@ -44,7 +44,9 @@ def _bytes(tensor: Any) -> bytes:
     arr = tensor.detach().to(device="cpu", copy=True).contiguous()
     # Byte-view is defined for bool, integer, fp16, bf16, fp32, fp64 and other
     # dense dtypes and retains distinctions like +0/-0 and NaN payload bits.
-    return arr.view(torch.uint8).reshape(-1).numpy().tobytes()
+    # Scalar state (e.g. BatchNorm.num_batches_tracked) must gain a
+    # dimension before reinterpreting multi-byte dtypes as uint8.
+    return arr.reshape(-1).view(torch.uint8).numpy().tobytes()
 
 
 def attest_checkpoint_state(
