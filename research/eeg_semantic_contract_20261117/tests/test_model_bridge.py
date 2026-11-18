@@ -109,3 +109,25 @@ def test_real_torch_parameter_alias_identity_if_available():
     )
     assert report.report.decision == Decision.ACCEPT
     assert report.evidence.loaded_parameters == frozenset({"encoder.weight", "head.weight"})
+
+
+def test_lazy_unmaterialized_parameter_is_not_certified_as_pretrained():
+    torch = pytest.importorskip("torch")
+    model = torch.nn.Module()
+    model.encoder = torch.nn.LazyLinear(3)
+    model.__dict__["_pretrained_provenance"] = {
+        "commit": SHA, "loaded": {"encoder.weight"}, "mixed": set()
+    }
+    a = inspect_model(
+        model, signal_status="EXACT", feature_scope={"encoder.weight"},
+        overlap="NONE", claim_held_out=True,
+    )
+    assert a.report.decision == Decision.REFUSE
+    assert a.report.missing_feature_parameters == ("encoder.weight",)
+
+
+def test_string_feature_scope_is_rejected_instead_of_split_into_characters():
+    with pytest.raises(TypeError, match="feature_scope"):
+        inspect_model(
+            FakeModel(), signal_status="EXACT", feature_scope="encoder.weight"
+        )
