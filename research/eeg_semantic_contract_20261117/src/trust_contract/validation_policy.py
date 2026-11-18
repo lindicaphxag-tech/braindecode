@@ -121,6 +121,10 @@ def assess(e: Evidence) -> Report:
             else:
                 guarantees.append("declared_feature_parameters_loaded")
     else:
+        # Claimed loaded names cannot establish checkpoint coverage without
+        # the corresponding observed model-state inventory.
+        if e.loaded_parameters and e.checkpoint_parameters is None:
+            mark(Decision.REVIEW, "checkpoint_parameter_inventory_missing")
         if e.loaded_parameters is None:
             mark(Decision.DISCLOSE, "checkpoint_loading_unverified_for_finetuning")
         elif not e.loaded_parameters:
