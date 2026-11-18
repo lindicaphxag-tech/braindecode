@@ -19,8 +19,8 @@ import torch
 SOURCES = {
     "merged": ("9c541453e2c13ce0c3680a1582a136ca121b0da7",
                "896f80ac2934851a3ef7ef731c83ac43be0aa845"),
-    "followup": ("baf8e4c734181727a34a33df126a89a356f0cc81",
-                 "3b05938f993e7fd6f1e6651614018129dbb8defc"),
+    "followup": ("876f4ec51440b8f7d9b8858cdeef38091198f13c",
+                 "d056722a3a8381a1cf7f9dec5dafb0fdfcf01db"),
 }
 CHOICE = os.environ.get("BD_CHANNELS_REF", "followup")
 if CHOICE not in SOURCES:
