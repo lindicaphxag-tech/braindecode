@@ -16,6 +16,7 @@ class FakeModel:
         if loaded is not None:
             self._pretrained_provenance = {
                 "commit": commit,
+                "repo_id": "example/eeg-model",
                 "loaded": {"encoder.weight"} if loaded else set(),
                 "mixed": set(mixed),
             }
@@ -99,7 +100,7 @@ def test_real_torch_parameter_alias_identity_if_available():
     model.head = torch.nn.Module()
     model.head.register_parameter("weight", model.encoder.weight)
     model.__dict__["_pretrained_provenance"] = {
-        "commit": SHA,
+        "commit": SHA, "repo_id": "example/eeg-model",
         "loaded": {"encoder.weight"},
         "mixed": set(),
     }
@@ -116,7 +117,7 @@ def test_lazy_unmaterialized_parameter_is_not_certified_as_pretrained():
     model = torch.nn.Module()
     model.encoder = torch.nn.LazyLinear(3)
     model.__dict__["_pretrained_provenance"] = {
-        "commit": SHA, "loaded": {"encoder.weight"}, "mixed": set()
+        "commit": SHA, "repo_id": "example/eeg-model", "loaded": {"encoder.weight"}, "mixed": set()
     }
     a = inspect_model(
         model, signal_status="EXACT", feature_scope={"encoder.weight"},
@@ -131,3 +132,10 @@ def test_string_feature_scope_is_rejected_instead_of_split_into_characters():
         inspect_model(
             FakeModel(), signal_status="EXACT", feature_scope="encoder.weight"
         )
+
+def test_hash_without_checkpoint_repository_identity_requires_review():
+    model = FakeModel()
+    model._pretrained_provenance.pop("repo_id")
+    report = audit(model)
+    assert not report.checkpoint_pinned
+    assert report.report.decision == Decision.REVIEW
